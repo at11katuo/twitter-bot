@@ -1,0 +1,56 @@
+name: hana-twitter-bot
+
+services:
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    command: sh -c "pnpm --filter @hana/db migrate:deploy"
+    env_file: .env
+    environment:
+      DATABASE_URL: file:/app/data/hana.db
+    volumes:
+      - db_data:/app/data
+    restart: "no"
+    networks: [internal]
+
+  generator:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: file:/app/data/hana.db
+    volumes:
+      - db_data:/app/data
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal]
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard.Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: file:/app/data/hana.db
+      IMAGE_DIR: /app/data/images
+      PRISMA_QUERY_ENGINE_LIBRARY: /app/prisma-engine/libquery_engine-linux-musl-openssl-3.0.x.so.node
+    ports:
+      - "3001:3001"
+    volumes:
+      - db_data:/app/data
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal]
+
+volumes:
+  db_data:
+
+networks:
+  internal:
+    driver: bridge

@@ -1,0 +1,13 @@
+{
+  "name": "hana-twitter-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:generator": "pnpm --filter @hana/generator dev",
+    "dev:dashboard": "pnpm --filter @hana/dashboard dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,95 @@
+name: Deploy Hana Bot to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: SSH Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd ${{ secrets.HANA_DEPLOY_PATH }}
+
+            echo "==> git pull"
+            git pull origin main
+
+            echo "==> write .env"
+            cat > .env <<'ENVEOF'
+            DATABASE_URL=file:/app/data/hana.db
+            NODE_ENV=production
+            IMAGE_DIR=/app/data/images
+            ENVEOF
+            echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> .env
+            echo "TWITTER_API_KEY=${{ secrets.TWITTER_API_KEY }}" >> .env
+            echo "TWITTER_API_SECRET=${{ secrets.TWITTER_API_SECRET }}" >> .env
+            echo "TWITTER_ACCESS_TOKEN=${{ secrets.TWITTER_ACCESS_TOKEN }}" >> .env
+            echo "TWITTER_ACCESS_TOKEN_SECRET=${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}" >> .env
+            echo "DASHBOARD_BASIC_USER=${{ secrets.HANA_BASIC_USER }}" >> .env
+            echo "DASHBOARD_BASIC_PASS=${{ secrets.HANA_BASIC_PASS }}" >> .env
+
+            echo "==> docker compose build"
+            DOCKER_BUILDKIT=1 docker compose build
+
+            echo "==> stop existing containers"
+            docker compose down
+
+            echo "==> run migration"
+            docker compose up --exit-code-from migrate migrate
+
+            echo "==> fix permissions"
+            docker compose run --rm --user root migrate chmod -R 777 /app/data
+
+            echo "==> launch services"
+            docker compose up -d
+
+            echo "==> health check (retry up to 60s)"
+            ATTEMPTS=0
+            HTTP_STATUS="000"
+            while [ "$ATTEMPTS" -lt 12 ]; do
+              HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+                --max-time 10 \
+                -u "${{ secrets.HANA_BASIC_USER }}:${{ secrets.HANA_BASIC_PASS }}" \
+                "http://localhost:3001" 2>/dev/null) || HTTP_STATUS="000"
+              if [ "$HTTP_STATUS" = "200" ]; then
+                echo "==> dashboard OK (HTTP $HTTP_STATUS)"
+                break
+              fi
+              ATTEMPTS=$((ATTEMPTS + 1))
+              echo "  waiting... (attempt $ATTEMPTS/12, HTTP $HTTP_STATUS)"
+              sleep 5
+            done
+            if [ "$HTTP_STATUS" != "200" ]; then
+              echo "ERROR: dashboard not responding" >&2
+              docker compose logs --tail=40 dashboard >&2
+              exit 1
+            fi
+
+            echo "==> deploy complete"
+
+      - name: Notify Discord (success)
+        if: success() && secrets.DISCORD_WEBHOOK_URL != ''
+        run: |
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\": \"🌸 **Hana Bot deployed** — \`$(echo '${{ github.sha }}' | cut -c1-7)\` by ${{ github.actor }}\"}"
+
+      - name: Notify Discord (failure)
+        if: failure() && secrets.DISCORD_WEBHOOK_URL != ''
+        run: |
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\": \"❌ **Hana Bot deploy FAILED** — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}>\"}"

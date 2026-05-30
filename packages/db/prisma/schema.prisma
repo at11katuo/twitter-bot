@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 1件 = 1投稿スロット（朝/昼/夜）
+model Post {
+  id          String    @id @default(cuid())
+  slot        String    // "morning" | "noon" | "evening"
+  scheduledAt DateTime  // 予定投稿日時 (JST)
+  theme       String    // コンテンツテーマ key
+  themeName   String    // 表示名 (英語)
+  imagePrompt String    // Pollo AI 用プロンプト
+  tweetText   String    // ツイート本文 (英語)
+  imagePath   String?   // アップロード済み画像パス
+  status      String    @default("draft") // draft | ready | posted | skipped
+  tweetId     String?   // 投稿後の Tweet ID
+  postedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
