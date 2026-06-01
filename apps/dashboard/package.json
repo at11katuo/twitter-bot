@@ -8,6 +8,7 @@
     "start": "next start -p 3001"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
     "@hana/db": "workspace:*",
     "@hana/shared": "workspace:*",
     "next": "^14.2.18",
