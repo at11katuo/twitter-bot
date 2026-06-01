@@ -3,6 +3,8 @@ import { SLOT_LABELS } from '@hana/shared'
 import Link from 'next/link'
 import { generateContentAction } from '@/server/actions/post'
 
+export const dynamic = 'force-dynamic'
+
 function slotBadge(slot: string) {
   const s = slot as keyof typeof SLOT_LABELS
   const info = SLOT_LABELS[s] ?? { emoji: '📅', en: slot, time: '' }
