@@ -2,9 +2,9 @@ export type Slot = 'morning' | 'noon' | 'evening'
 export type PostStatus = 'draft' | 'ready' | 'posted' | 'skipped'
 
 export const SLOT_LABELS: Record<Slot, { en: string; time: string; emoji: string }> = {
-  morning: { en: 'Morning',   time: '07:30', emoji: '☀️' },
-  noon:    { en: 'Afternoon', time: '12:00', emoji: '🌿' },
-  evening: { en: 'Evening',   time: '20:00', emoji: '🌙' },
+  morning: { en: 'Morning',   time: '08:00', emoji: '☀️' },
+  noon:    { en: 'Afternoon', time: '15:00', emoji: '🌿' },
+  evening: { en: 'Evening',   time: '22:00', emoji: '🌙' },
 }
 
 export const THEMES = [

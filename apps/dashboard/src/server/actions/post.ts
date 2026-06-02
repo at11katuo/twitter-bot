@@ -76,32 +76,63 @@ function getScheduledAt(slot: Slot, dateJST: Date): Date {
   return d
 }
 
+const SLOTS: Slot[] = ['morning', 'noon', 'evening']
+
+async function hasPostsForDate(dateJST: Date): Promise<boolean> {
+  const start = new Date(dateJST)
+  start.setHours(-9, 0, 0, 0)
+  const end = new Date(dateJST)
+  end.setHours(23 - 9, 59, 59, 999)
+  const count = await prisma.post.count({
+    where: { scheduledAt: { gte: start, lte: end } },
+  })
+  return count >= 3
+}
+
+async function generateDay(dateJST: Date): Promise<void> {
+  if (await hasPostsForDate(dateJST)) return
+
+  const usedKeys = (await prisma.post.findMany({
+    take: 12,
+    orderBy: { createdAt: 'desc' },
+    select: { theme: true },
+  })).map((p) => p.theme)
+
+  await Promise.all(
+    SLOTS.map(async (slot) => {
+      try {
+        const { theme, tweetText, japaneseTranslation, imagePrompt } = await generateContent(slot, usedKeys)
+        await prisma.post.create({
+          data: {
+            slot,
+            scheduledAt: getScheduledAt(slot, dateJST),
+            theme: theme.key,
+            themeName: theme.name,
+            imagePrompt,
+            tweetText,
+            japaneseTranslation,
+            status: 'draft',
+          },
+        })
+      } catch (e) {
+        console.error(`Failed to generate ${slot}:`, e)
+      }
+    })
+  )
+}
+
 export async function generateContentAction() {
   const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000)
-  const usedKeys = (await prisma.post.findMany({ take: 9, orderBy: { createdAt: 'desc' }, select: { theme: true } }))
-    .map((p) => p.theme)
+  await generateDay(nowJST)
+  revalidatePath('/')
+}
 
-  const slots: Slot[] = ['morning', 'noon', 'evening']
-  for (const slot of slots) {
-    try {
-      const { theme, tweetText, japaneseTranslation, imagePrompt } = await generateContent(slot, usedKeys)
-      usedKeys.push(theme.key)
-      await prisma.post.create({
-        data: {
-          slot,
-          scheduledAt: getScheduledAt(slot, nowJST),
-          theme: theme.key,
-          themeName: theme.name,
-          imagePrompt,
-          tweetText,
-          japaneseTranslation,
-          status: 'draft',
-        },
-      })
-    } catch (e) {
-      console.error(`Failed to generate ${slot}:`, e)
-    }
+export async function generateWeekAction() {
+  const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  for (let i = 0; i < 7; i++) {
+    const dateJST = new Date(nowJST)
+    dateJST.setDate(dateJST.getDate() + i)
+    await generateDay(dateJST)
   }
-
   revalidatePath('/')
 }
