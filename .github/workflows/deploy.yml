@@ -56,14 +56,13 @@ jobs:
             echo "==> launch services"
             docker compose up -d
 
-            echo "==> health check (retry up to 60s)"
+            echo "==> health check — /login (retry up to 60s)"
             ATTEMPTS=0
             HTTP_STATUS="000"
             while [ "$ATTEMPTS" -lt 12 ]; do
               HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
                 --max-time 10 \
-                -u "${{ secrets.HANA_BASIC_USER }}:${{ secrets.HANA_BASIC_PASS }}" \
-                "http://localhost:3001" 2>/dev/null) || HTTP_STATUS="000"
+                "http://localhost:3001/login" 2>/dev/null) || HTTP_STATUS="000"
               if [ "$HTTP_STATUS" = "200" ]; then
                 echo "==> dashboard OK (HTTP $HTTP_STATUS)"
                 break
