@@ -117,6 +117,25 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     })
   }
 
+  // ── 今すぐ投稿（テスト用） ────────────────────────────────────────
+  const handlePostNow = () => {
+    if (!confirm('今すぐ Twitter に投稿します。よろしいですか？')) return
+    startTransition(async () => {
+      const res = await fetch(`/api/posts/${params.id}/post`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tweetText }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setPost((p) => p ? { ...p, status: 'posted', tweetId: data.tweetId } : p)
+        setMessage(`✅ 投稿完了！ Tweet ID: ${data.tweetId}`)
+      } else {
+        setMessage(`❌ エラー: ${data.error}`)
+      }
+    })
+  }
+
   // ── プロンプトコピー ───────────────────────────────────────────────
   const handleCopyPrompt = async () => {
     if (!post) return
@@ -317,6 +336,17 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
                 : `🌸 Schedule Post（予約する）`}
           </button>
         )
+      )}
+
+      {/* 今すぐ投稿（テスト用） */}
+      {!isPosted && hasImage && (
+        <button
+          onClick={handlePostNow}
+          disabled={isPending}
+          className="w-full h-12 rounded-xl border border-orange-700/60 text-orange-400 text-sm font-semibold active:bg-orange-900/20 disabled:opacity-40 transition touch-manipulation"
+        >
+          {isPending ? '投稿中...' : '⚡ 今すぐ投稿（テスト）'}
+        </button>
       )}
 
       {isPosted && (
