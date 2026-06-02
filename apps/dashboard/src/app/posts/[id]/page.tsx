@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 type PostDetail = {
@@ -22,6 +22,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
   const [post, setPost] = useState<PostDetail | null>(null)
   const [tweetText, setTweetText] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState('')
 
@@ -34,10 +35,13 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
       })
   }, [params.id])
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const uploadFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setMessage('Image files only.')
+      return
+    }
     setUploading(true)
+    setMessage('')
     const formData = new FormData()
     formData.append('image', file)
     const res = await fetch(`/api/upload/${params.id}`, { method: 'POST', body: formData })
@@ -48,6 +52,47 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
       setMessage('Upload failed.')
     }
     setUploading(false)
+  }, [params.id])
+
+  // Ctrl+V / Cmd+V でクリップボードの画像を貼り付け
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (uploading) return
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          if (file) uploadFile(file)
+          break
+        }
+      }
+    }
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [uploading, uploadFile])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) uploadFile(file)
+    e.target.value = ''
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) uploadFile(file)
   }
 
   const handlePost = () => {
@@ -108,18 +153,38 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={`/api/image/${post.id}`} alt="" className="w-full rounded-lg object-cover max-h-96" />
         ) : (
-          <div className="rounded-lg border-2 border-dashed border-slate-600 p-8 text-center">
-            <p className="text-slate-400 text-sm mb-3">No image yet. Upload after generating in Pollo AI.</p>
-            <label className="cursor-pointer rounded-lg bg-pink-800 hover:bg-pink-700 px-4 py-2 text-sm text-white">
-              {uploading ? 'Uploading...' : 'Upload Image'}
-              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-            </label>
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
+              isDragging
+                ? 'border-pink-500 bg-pink-950/20'
+                : 'border-slate-600'
+            }`}
+          >
+            {uploading ? (
+              <p className="text-slate-400 text-sm">Uploading...</p>
+            ) : (
+              <>
+                <p className="text-slate-400 text-sm mb-1">
+                  No image yet. Upload after generating in Pollo AI.
+                </p>
+                <p className="text-slate-600 text-xs mb-4">
+                  Drop image here, paste with Ctrl+V, or click to select
+                </p>
+                <label className="cursor-pointer rounded-lg bg-pink-800 hover:bg-pink-700 px-4 py-2 text-sm text-white">
+                  Upload Image
+                  <input type="file" accept="image/*" className="hidden" onChange={handleInputChange} />
+                </label>
+              </>
+            )}
           </div>
         )}
         {post.imagePath && !isPosted && (
           <label className="mt-3 block cursor-pointer rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-400 hover:border-pink-600 text-center">
             Replace image
-            <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            <input type="file" accept="image/*" className="hidden" onChange={handleInputChange} />
           </label>
         )}
       </div>
