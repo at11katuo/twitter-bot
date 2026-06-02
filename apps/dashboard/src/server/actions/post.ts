@@ -30,14 +30,18 @@ async function generateContent(slot: Slot, usedKeys: string[]) {
   const [tweetRes, promptRes] = await Promise.all([
     claude.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 512,
+      max_tokens: 768,
       system: CHARACTER_SYSTEM,
       messages: [{
         role: 'user',
         content: `Write a tweet for Hana's ${slotInfo.en} post (${slotInfo.time} JST).
 Theme: ${theme.name}
 Mood: ${moods[slot]}
-Output only the tweet text.`,
+
+Output in this exact format (two sections separated by ---):
+<English tweet text here>
+---
+<Japanese translation of the body text only (no hashtags), natural Japanese for admin review>`,
       }],
     }),
     claude.messages.create({
@@ -55,10 +59,14 @@ Write a single detailed prompt (2–4 sentences). Output only the prompt.`,
     }),
   ])
 
-  const tweetText = tweetRes.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
+  const raw = tweetRes.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
   const imagePrompt = promptRes.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
 
-  return { theme, tweetText, imagePrompt }
+  const sepIdx = raw.lastIndexOf('\n---\n')
+  const tweetText = sepIdx !== -1 ? raw.slice(0, sepIdx).trim() : raw
+  const japaneseTranslation = sepIdx !== -1 ? raw.slice(sepIdx + 5).trim() : ''
+
+  return { theme, tweetText, japaneseTranslation, imagePrompt }
 }
 
 function getScheduledAt(slot: Slot, dateJST: Date): Date {
@@ -76,7 +84,7 @@ export async function generateContentAction() {
   const slots: Slot[] = ['morning', 'noon', 'evening']
   for (const slot of slots) {
     try {
-      const { theme, tweetText, imagePrompt } = await generateContent(slot, usedKeys)
+      const { theme, tweetText, japaneseTranslation, imagePrompt } = await generateContent(slot, usedKeys)
       usedKeys.push(theme.key)
       await prisma.post.create({
         data: {
@@ -86,6 +94,7 @@ export async function generateContentAction() {
           themeName: theme.name,
           imagePrompt,
           tweetText,
+          japaneseTranslation,
           status: 'draft',
         },
       })

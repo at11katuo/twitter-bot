@@ -15,8 +15,9 @@ model Post {
   theme       String    // コンテンツテーマ key
   themeName   String    // 表示名 (英語)
   imagePrompt String    // Pollo AI 用プロンプト
-  tweetText   String    // ツイート本文 (英語)
-  imagePath   String?   // アップロード済み画像パス
+  tweetText           String    // ツイート本文 (英語)
+  japaneseTranslation String    @default("") // 管理者用日本語訳
+  imagePath           String?   // アップロード済み画像パス
   status      String    @default("draft") // draft | ready | posted | skipped
   tweetId     String?   // 投稿後の Tweet ID
   postedAt    DateTime?

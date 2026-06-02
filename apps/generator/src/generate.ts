@@ -11,11 +11,11 @@ export function pickTheme(usedKeys: string[]): (typeof THEMES)[number] {
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-// ツイート本文を生成
+// ツイート本文と日本語訳を一緒に生成
 export async function generateTweetText(
   slot: Slot,
   theme: (typeof THEMES)[number],
-): Promise<string> {
+): Promise<{ tweetText: string; japaneseTranslation: string }> {
   const slotInfo = SLOT_LABELS[slot]
   const mood = SLOT_MOODS[slot]
 
@@ -30,22 +30,33 @@ Requirements:
 - End with 4–6 relevant hashtags (on a new line, starting with a blank line)
 - Include 1–2 emoji naturally within the body
 
-Output only the tweet text. No explanation.`
+Output in this exact format (two sections separated by ---):
+<English tweet text here>
+---
+<Japanese translation of the body text only (no hashtags), natural Japanese for admin review>`
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 512,
+    max_tokens: 768,
     system: CHARACTER.systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   })
 
-  const text = response.content
+  const raw = response.content
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
     .join('')
     .trim()
 
-  return text
+  const sepIdx = raw.lastIndexOf('\n---\n')
+  if (sepIdx !== -1) {
+    return {
+      tweetText: raw.slice(0, sepIdx).trim(),
+      japaneseTranslation: raw.slice(sepIdx + 5).trim(),
+    }
+  }
+  // フォールバック: セパレータがなければ英語のみ
+  return { tweetText: raw, japaneseTranslation: '' }
 }
 
 // Pollo AI用の画像生成プロンプトを生成
@@ -86,14 +97,15 @@ export type GeneratedContent = {
   slot: Slot
   theme: (typeof THEMES)[number]
   tweetText: string
+  japaneseTranslation: string
   imagePrompt: string
 }
 
 export async function generateForSlot(slot: Slot, usedThemeKeys: string[]): Promise<GeneratedContent> {
   const theme = pickTheme(usedThemeKeys)
-  const [tweetText, imagePrompt] = await Promise.all([
+  const [tweetResult, imagePrompt] = await Promise.all([
     generateTweetText(slot, theme),
     generateImagePrompt(slot, theme),
   ])
-  return { slot, theme, tweetText, imagePrompt }
+  return { slot, theme, tweetText: tweetResult.tweetText, japaneseTranslation: tweetResult.japaneseTranslation, imagePrompt }
 }

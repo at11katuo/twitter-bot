@@ -58,6 +58,7 @@ async function generateDailyContent(targetDateJST: Date): Promise<void> {
           themeName: content.theme.name,
           imagePrompt: content.imagePrompt,
           tweetText: content.tweetText,
+          japaneseTranslation: content.japaneseTranslation,
           status: 'draft',
         },
       })

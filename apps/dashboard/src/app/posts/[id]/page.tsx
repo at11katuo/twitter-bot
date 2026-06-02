@@ -10,6 +10,7 @@ type PostDetail = {
   themeName: string
   imagePrompt: string
   tweetText: string
+  japaneseTranslation: string
   imagePath: string | null
   status: string
   tweetId: string | null
@@ -154,6 +155,12 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
           <button onClick={handleSaveText} className="mt-2 text-xs text-slate-400 hover:text-white">
             Save changes
           </button>
+        )}
+        {post.japaneseTranslation && (
+          <div className="mt-3 rounded-lg bg-slate-800/60 border border-slate-700/50 p-3">
+            <p className="text-xs text-slate-500 mb-1">🇯🇵 日本語訳（カンペ）</p>
+            <p className="text-sm text-slate-300 leading-relaxed">{post.japaneseTranslation}</p>
+          </div>
         )}
       </div>
 

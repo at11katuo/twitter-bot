@@ -111,6 +111,9 @@ function PostCard({ post }: { post: Awaited<ReturnType<typeof prisma.post.findMa
             <span className="text-xs text-slate-500">{post.themeName}</span>
           </div>
           <p className="text-sm text-slate-300 line-clamp-2">{post.tweetText}</p>
+          {post.japaneseTranslation && (
+            <p className="mt-1 text-xs text-slate-500 line-clamp-2">🇯🇵 {post.japaneseTranslation}</p>
+          )}
           <p className="mt-1 text-xs text-slate-500">
             {new Date(post.scheduledAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
           </p>
