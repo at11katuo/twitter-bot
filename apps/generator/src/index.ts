@@ -3,7 +3,7 @@ import { SLOT_LABELS, type Slot } from '@hana/shared'
 import { generateForSlot } from './generate.js'
 import { startPostingCron } from './poster.js'
 
-const SLOTS: Slot[] = ['morning', 'noon', 'evening']
+const SLOTS: Slot[] = ['morning', 'evening']
 
 // JST での次の投稿日の各スロット日時を返す
 function getScheduledAt(slot: Slot, targetDateJST: Date): Date {
@@ -22,7 +22,7 @@ async function hasPostsForDate(dateJST: Date): Promise<boolean> {
   const count = await prisma.post.count({
     where: { scheduledAt: { gte: start, lte: end } },
   })
-  return count >= 3
+  return count >= 2
 }
 
 // 直近 N 件の使用テーマキーを取得（重複回避）

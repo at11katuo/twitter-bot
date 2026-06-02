@@ -76,7 +76,7 @@ function getScheduledAt(slot: Slot, dateJST: Date): Date {
   return d
 }
 
-const SLOTS: Slot[] = ['morning', 'noon', 'evening']
+const SLOTS: Slot[] = ['morning', 'evening']
 
 async function hasPostsForDate(dateJST: Date): Promise<boolean> {
   const start = new Date(dateJST)
@@ -86,7 +86,7 @@ async function hasPostsForDate(dateJST: Date): Promise<boolean> {
   const count = await prisma.post.count({
     where: { scheduledAt: { gte: start, lte: end } },
   })
-  return count >= 3
+  return count >= 2
 }
 
 async function generateDay(dateJST: Date): Promise<void> {
