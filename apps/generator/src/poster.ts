@@ -1,5 +1,5 @@
 import { prisma } from '@hana/db'
-import { TwitterApi } from 'twitter-api-v2'
+import { TwitterApi, EUploadMimeType } from 'twitter-api-v2'
 import path from 'path'
 import fs from 'fs'
 
@@ -10,6 +10,16 @@ function buildClient(): TwitterApi {
     accessToken:  process.env.TWITTER_ACCESS_TOKEN!,
     accessSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET!,
   })
+}
+
+function extToMimeType(ext: string): EUploadMimeType {
+  switch (ext) {
+    case 'mp4':  return EUploadMimeType.Mp4
+    case 'gif':  return EUploadMimeType.Gif
+    case 'png':  return EUploadMimeType.Png
+    case 'webp': return EUploadMimeType.Webp
+    default:     return EUploadMimeType.Jpeg
+  }
 }
 
 async function postDuePosts(): Promise<void> {
@@ -23,30 +33,37 @@ async function postDuePosts(): Promise<void> {
 
   console.log(`[poster] ${duePosts.length} post(s) due. Posting now...`)
   const client = buildClient()
-  const imageDir = process.env.IMAGE_DIR ?? '/app/data/images'
+  const mediaDir = process.env.IMAGE_DIR ?? '/app/data/images'
 
   for (const post of duePosts) {
     if (!post.imagePath) {
-      console.warn(`[poster] Skip ${post.id}: no image attached`)
+      console.warn(`[poster] Skip ${post.id}: no media attached`)
       continue
     }
 
     try {
-      const imagePath = path.join(imageDir, post.imagePath)
-      const imageBuffer = fs.readFileSync(imagePath)
+      const filePath  = path.join(mediaDir, post.imagePath)
+      const fileBuffer = fs.readFileSync(filePath)
+      const ext       = post.imagePath.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const mimeType  = extToMimeType(ext)
+      const isVideo   = post.mediaType === 'video'
 
-      const ext = post.imagePath.split('.').pop()?.toLowerCase() ?? 'jpeg'
-      const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg'
+      console.log(`[poster] Uploading ${isVideo ? 'video' : 'image'} (${Math.round(fileBuffer.length / 1024)}KB) for post ${post.id}...`)
 
-      const mediaId = await client.readWrite.v1.uploadMedia(imageBuffer, { mimeType })
+      // twitter-api-v2 の uploadMedia は:
+      //  - 動画(mp4): INIT→APPEND(5MB チャンク)→FINALIZE→STATUS ポーリング を自動処理
+      //  - 画像: シンプルアップロード
+      // media_category は mimeType から自動判定 (mp4 → tweet_video)
+      const mediaId = await client.readWrite.v1.uploadMedia(fileBuffer, { mimeType })
+
       const tweet = await client.readWrite.v2.tweet({
-        text: post.tweetText,
+        text:  post.tweetText,
         media: { media_ids: [mediaId] },
       })
 
       await prisma.post.update({
         where: { id: post.id },
-        data: { status: 'posted', tweetId: tweet.data.id, postedAt: new Date() },
+        data:  { status: 'posted', tweetId: tweet.data.id, postedAt: new Date() },
       })
 
       console.log(`[poster] ✓ ${post.slot} "${post.themeName}" → tweet ${tweet.data.id}`)
@@ -59,7 +76,6 @@ async function postDuePosts(): Promise<void> {
 export function startPostingCron(): void {
   console.log('[poster] Cron started — checking every 60s for scheduled posts.')
 
-  // 起動直後も一度チェック
   postDuePosts().catch((err) => console.error('[poster] Initial check failed:', err))
 
   setInterval(() => {

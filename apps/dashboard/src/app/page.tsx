@@ -138,8 +138,12 @@ function PostCard({ post }: { post: Awaited<ReturnType<typeof prisma.post.findMa
       {/* サムネイル */}
       <div className="w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-slate-700 flex items-center justify-center">
         {post.imagePath ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={`/api/image/${post.id}`} alt="" className="w-full h-full object-cover" />
+          post.mediaType === 'video' ? (
+            <span className="text-2xl">🎬</span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={`/api/image/${post.id}`} alt="" className="w-full h-full object-cover" />
+          )
         ) : (
           <span className="text-xl opacity-20">🖼</span>
         )}

@@ -12,6 +12,7 @@ type PostDetail = {
   tweetText: string
   japaneseTranslation: string
   imagePath: string | null
+  mediaType: string  // "image" | "video"
   status: string
   tweetId: string | null
   postedAt: string | null
@@ -44,8 +45,10 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
 
   // ── 画像アップロード共通処理 ──────────────────────────────────────
   const uploadFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setMessage('画像ファイルのみ対応しています。')
+    const isVideo = file.type.startsWith('video/')
+    const isImage = file.type.startsWith('image/')
+    if (!isImage && !isVideo) {
+      setMessage('画像または動画ファイルのみ対応しています。')
       return
     }
     setUploading(true)
@@ -54,8 +57,9 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     formData.append('image', file)
     const res = await fetch(`/api/upload/${params.id}`, { method: 'POST', body: formData })
     if (res.ok) {
-      setPost((p) => p ? { ...p, imagePath: 'uploaded' } : p)
-      setMessage('✅ 画像を保存しました')
+      const data = await res.json()
+      setPost((p) => p ? { ...p, imagePath: 'uploaded', mediaType: data.mediaType ?? 'image' } : p)
+      setMessage(isVideo ? '✅ 動画を保存しました' : '✅ 画像を保存しました')
     } else {
       setMessage('❌ アップロードに失敗しました')
     }
@@ -187,16 +191,25 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
 
         {hasImage ? (
           <div className="space-y-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`/api/image/${post.id}`}
-              alt=""
-              className="w-full rounded-xl object-cover max-h-80"
-            />
+            {post.mediaType === 'video' ? (
+              <video
+                src={`/api/image/${post.id}`}
+                controls
+                playsInline
+                className="w-full rounded-xl max-h-80 bg-black"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/api/image/${post.id}`}
+                alt=""
+                className="w-full rounded-xl object-cover max-h-80"
+              />
+            )}
             {!isPosted && (
               <label className="flex items-center justify-center w-full h-12 rounded-xl border border-slate-600 text-sm text-slate-400 active:bg-slate-800 cursor-pointer touch-manipulation">
-                🔄 画像を差し替える
-                <input type="file" accept="image/*" className="hidden" onChange={handleInputChange} />
+                🔄 ファイルを差し替える
+                <input type="file" accept="image/*,video/mp4,video/*" className="hidden" onChange={handleInputChange} />
               </label>
             )}
           </div>
@@ -217,13 +230,14 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
               <label className="flex flex-col items-center justify-center gap-3 p-8 cursor-pointer touch-manipulation">
                 <span className="text-4xl opacity-30">🖼</span>
                 <div className="text-center">
-                  <p className="text-slate-300 text-sm font-medium">タップして写真を選択</p>
-                  <p className="text-slate-600 text-xs mt-0.5">またはドラッグ＆ドロップ・Ctrl+V</p>
+                  <p className="text-slate-300 text-sm font-medium">タップして画像 / 動画を選択</p>
+                  <p className="text-slate-600 text-xs mt-0.5">ドラッグ＆ドロップ・Ctrl+V も可</p>
+                  <p className="text-slate-700 text-xs">画像（jpg/png/gif）または動画（mp4）</p>
                 </div>
                 <span className="w-full rounded-xl bg-pink-700 active:bg-pink-800 py-3 text-center text-sm font-semibold text-white touch-manipulation">
-                  フォトライブラリから選ぶ
+                  フォトライブラリ / ファイルを選ぶ
                 </span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleInputChange} />
+                <input type="file" accept="image/*,video/mp4,video/*" className="hidden" onChange={handleInputChange} />
               </label>
             )}
           </div>
