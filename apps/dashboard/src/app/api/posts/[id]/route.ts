@@ -8,10 +8,10 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const { tweetText } = await req.json()
-  const post = await prisma.post.update({
-    where: { id: params.id },
-    data: { tweetText },
-  })
+  const body = await req.json()
+  const data: { tweetText?: string; status?: string } = {}
+  if (typeof body.tweetText === 'string') data.tweetText = body.tweetText
+  if (typeof body.status   === 'string') data.status    = body.status
+  const post = await prisma.post.update({ where: { id: params.id }, data })
   return NextResponse.json(post)
 }

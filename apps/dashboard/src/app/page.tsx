@@ -29,8 +29,9 @@ function slotBadge(slot: string) {
 }
 
 const STATUS_MAP: Record<string, { label: string; cls: string }> = {
-  draft:   { label: '未予約',   cls: 'bg-yellow-900/50 text-yellow-300' },
-  ready:   { label: '予約済み', cls: 'bg-blue-900/50 text-blue-300' },
+  draft:   { label: '未対応',   cls: 'bg-yellow-900/50 text-yellow-300' },
+  ready:   { label: '準備中',   cls: 'bg-blue-900/50 text-blue-300' },
+  done:    { label: '投稿済み', cls: 'bg-green-900/50 text-green-300' },
   posted:  { label: '投稿済み', cls: 'bg-green-900/50 text-green-300' },
   skipped: { label: 'スキップ', cls: 'bg-gray-800 text-gray-400' },
 }
@@ -79,7 +80,7 @@ export default async function HomePage() {
             const isFuture = dateKey >= todayKey
 
             const readyCount  = dayPosts.filter((p) => p.status === 'ready').length
-            const postedCount = dayPosts.filter((p) => p.status === 'posted').length
+            const postedCount = dayPosts.filter((p) => p.status === 'posted' || p.status === 'done').length
             const draftCount  = dayPosts.filter((p) => p.status === 'draft').length
 
             return (
