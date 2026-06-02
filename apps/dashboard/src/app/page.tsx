@@ -11,12 +11,15 @@ function slotBadge(slot: string) {
   return `${info.emoji} ${info.en} ${info.time}`
 }
 
-function statusColor(status: string) {
-  if (status === 'draft')   return 'bg-yellow-900/50 text-yellow-300'
-  if (status === 'ready')   return 'bg-blue-900/50 text-blue-300'
-  if (status === 'posted')  return 'bg-green-900/50 text-green-300'
-  if (status === 'skipped') return 'bg-gray-800 text-gray-400'
-  return 'bg-gray-800 text-gray-400'
+const STATUS_MAP: Record<string, { label: string; cls: string }> = {
+  draft:   { label: '未予約',   cls: 'bg-yellow-900/50 text-yellow-300' },
+  ready:   { label: '予約済み', cls: 'bg-blue-900/50 text-blue-300' },
+  posted:  { label: '投稿済み', cls: 'bg-green-900/50 text-green-300' },
+  skipped: { label: 'スキップ', cls: 'bg-gray-800 text-gray-400' },
+}
+
+function statusBadge(status: string) {
+  return STATUS_MAP[status] ?? { label: status, cls: 'bg-gray-800 text-gray-400' }
 }
 
 export default async function HomePage() {
@@ -25,9 +28,9 @@ export default async function HomePage() {
     take: 30,
   })
 
-  const draft  = posts.filter((p) => p.status === 'draft')
-  const ready  = posts.filter((p) => p.status === 'ready')
-  const posted = posts.filter((p) => p.status === 'posted')
+  const draft    = posts.filter((p) => p.status === 'draft')
+  const ready    = posts.filter((p) => p.status === 'ready')
+  const posted   = posts.filter((p) => p.status === 'posted')
 
   return (
     <div className="space-y-6">
@@ -44,11 +47,11 @@ export default async function HomePage() {
         </form>
       </div>
 
-      {/* Ready to post */}
+      {/* 予約済み */}
       {ready.length > 0 && (
         <section>
           <h3 className="mb-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
-            Ready to Post ({ready.length})
+            予約済み — 自動投稿待ち ({ready.length})
           </h3>
           <div className="space-y-2">
             {ready.map((p) => (
@@ -58,11 +61,11 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Draft — needs image */}
+      {/* 未予約 */}
       {draft.length > 0 && (
         <section>
           <h3 className="mb-2 text-xs font-semibold text-yellow-400 uppercase tracking-wider">
-            Needs Image ({draft.length})
+            未予約 — 画像をアップして予約してください ({draft.length})
           </h3>
           <div className="space-y-2">
             {draft.map((p) => (
@@ -72,11 +75,11 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Posted */}
+      {/* 投稿済み */}
       {posted.length > 0 && (
         <section>
           <h3 className="mb-2 text-xs font-semibold text-green-400 uppercase tracking-wider">
-            Posted ({posted.length})
+            投稿済み ({posted.length})
           </h3>
           <div className="space-y-2">
             {posted.map((p) => (
@@ -117,8 +120,8 @@ function PostCard({ post }: { post: Awaited<ReturnType<typeof prisma.post.findMa
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1 flex-wrap">
             <span className="text-xs text-slate-400">{slotBadge(post.slot)}</span>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor(post.status)}`}>
-              {post.status}
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadge(post.status).cls}`}>
+              {statusBadge(post.status).label}
             </span>
           </div>
           <p className="text-xs font-medium text-slate-400 mb-0.5 truncate">{post.themeName}</p>

@@ -1,6 +1,7 @@
 import { prisma } from '@hana/db'
 import { SLOT_LABELS, type Slot } from '@hana/shared'
 import { generateForSlot } from './generate.js'
+import { startPostingCron } from './poster.js'
 
 const SLOTS: Slot[] = ['morning', 'noon', 'evening']
 
@@ -73,6 +74,9 @@ async function generateDailyContent(targetDateJST: Date): Promise<void> {
 
 async function runLoop(): Promise<void> {
   console.log('[generator] Started. Will generate content daily at 06:00 JST.')
+
+  // 自動投稿 cron を起動
+  startPostingCron()
 
   // 初回起動時に今日分がなければ生成
   const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000)

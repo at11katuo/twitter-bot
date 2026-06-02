@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   await prisma.post.update({
     where: { id: params.id },
-    data: { imagePath: filename, status: 'ready' },
+    data: { imagePath: filename },
   })
 
   return NextResponse.json({ ok: true, filename })

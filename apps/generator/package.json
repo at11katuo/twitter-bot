@@ -10,7 +10,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
     "@hana/db": "workspace:*",
-    "@hana/shared": "workspace:*"
+    "@hana/shared": "workspace:*",
+    "twitter-api-v2": "^1.19.0"
   },
   "devDependencies": {
     "tsx": "^4.19.2",

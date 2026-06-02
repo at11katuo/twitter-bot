@@ -17,6 +17,12 @@ type PostDetail = {
   postedAt: string | null
 }
 
+function slotEmoji(slot: string) {
+  if (slot === 'morning') return '☀️'
+  if (slot === 'noon')    return '🌿'
+  return '🌙'
+}
+
 export default function PostDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [post, setPost] = useState<PostDetail | null>(null)
@@ -30,12 +36,13 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     fetch(`/api/posts/${params.id}`)
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: PostDetail) => {
         setPost(data)
         setTweetText(data.tweetText)
       })
   }, [params.id])
 
+  // ── 画像アップロード共通処理 ──────────────────────────────────────
   const uploadFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setMessage('画像ファイルのみ対応しています。')
@@ -47,15 +54,15 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     formData.append('image', file)
     const res = await fetch(`/api/upload/${params.id}`, { method: 'POST', body: formData })
     if (res.ok) {
-      setPost((p) => p ? { ...p, imagePath: 'uploaded', status: 'ready' } : p)
-      setMessage('✅ 画像をアップロードしました')
+      setPost((p) => p ? { ...p, imagePath: 'uploaded' } : p)
+      setMessage('✅ 画像を保存しました')
     } else {
       setMessage('❌ アップロードに失敗しました')
     }
     setUploading(false)
   }, [params.id])
 
-  // Ctrl+V / Cmd+V でクリップボードの画像を貼り付け
+  // Ctrl+V / Cmd+V ペースト
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       if (uploading) return
@@ -79,16 +86,8 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     e.target.value = ''
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }
-
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true) }
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false) }
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
@@ -96,21 +95,30 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     if (file) uploadFile(file)
   }
 
-  const handlePost = () => {
+  // ── 予約登録 ──────────────────────────────────────────────────────
+  const handleSchedule = () => {
     startTransition(async () => {
-      const res = await fetch(`/api/posts/${params.id}/post`, {
+      const res = await fetch(`/api/posts/${params.id}/schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tweetText }),
       })
       const data = await res.json()
       if (data.ok) {
-        setMessage(`✅ 投稿完了！ Tweet ID: ${data.tweetId}`)
-        setPost((p) => p ? { ...p, status: 'posted', tweetId: data.tweetId } : p)
+        setPost((p) => p ? { ...p, status: 'ready', tweetText } : p)
+        setMessage('🕐 予約完了！自動投稿を待っています')
       } else {
         setMessage(`❌ エラー: ${data.error}`)
       }
     })
+  }
+
+  // ── プロンプトコピー ───────────────────────────────────────────────
+  const handleCopyPrompt = async () => {
+    if (!post) return
+    await navigator.clipboard.writeText(post.imagePrompt)
+    setPromptCopied(true)
+    setTimeout(() => setPromptCopied(false), 2000)
   }
 
   const handleSaveText = async () => {
@@ -119,14 +127,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tweetText }),
     })
-    if (res.ok) setMessage('💾 保存しました')
-  }
-
-  const handleCopyPrompt = async () => {
-    if (!post) return
-    await navigator.clipboard.writeText(post.imagePrompt)
-    setPromptCopied(true)
-    setTimeout(() => setPromptCopied(false), 2000)
+    if (res.ok) setMessage('💾 テキストを保存しました')
   }
 
   if (!post) return (
@@ -135,41 +136,56 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     </div>
   )
 
-  const isPosted = post.status === 'posted'
-  const canPost = post.status === 'ready' && !isPending
+  const isPosted    = post.status === 'posted'
+  const isScheduled = post.status === 'ready'
+  const hasImage    = Boolean(post.imagePath)
+  const canSchedule = hasImage && !isPosted && !isScheduled && !isPending
+
+  const scheduledJST = new Date(post.scheduledAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-4 pb-10">
       {/* 戻るボタン */}
       <button
         onClick={() => router.back()}
-        className="flex items-center gap-1 text-sm text-slate-400 active:text-white py-1 touch-manipulation"
+        className="flex items-center gap-1 text-sm text-slate-400 active:text-white py-2 touch-manipulation"
       >
         ← 一覧に戻る
       </button>
 
-      {/* ヘッダー */}
+      {/* ヘッダーカード */}
       <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-pink-200 text-base leading-tight">{post.themeName}</p>
-            <p className="text-xs text-slate-400 mt-0.5 capitalize">
-              {post.slot} · {new Date(post.scheduledAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">{slotEmoji(post.slot)}</span>
+              <p className="font-semibold text-pink-200 text-base leading-tight truncate">{post.themeName}</p>
+            </div>
+            <p className="text-xs text-slate-400 capitalize">
+              {post.slot} · 予定 {scheduledJST}
             </p>
           </div>
-          <span className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-            isPosted          ? 'bg-green-900/50 text-green-300' :
-            post.status === 'ready' ? 'bg-blue-900/50 text-blue-300' :
-            'bg-yellow-900/50 text-yellow-300'
-          }`}>{post.status}</span>
+          <StatusBadge status={post.status} />
         </div>
+
+        {/* 投稿済みリンク */}
+        {isPosted && post.tweetId && (
+          <a
+            href={`https://twitter.com/i/web/status/${post.tweetId}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 flex items-center justify-center w-full h-11 rounded-xl bg-green-900/30 border border-green-700/40 text-sm text-green-400"
+          >
+            Twitter で確認する →
+          </a>
+        )}
       </div>
 
       {/* 画像エリア */}
       <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-4">
-        <h3 className="text-sm font-semibold text-slate-300 mb-3">📷 Image</h3>
+        <h3 className="text-sm font-semibold text-slate-300 mb-3">📷 画像</h3>
 
-        {post.imagePath ? (
+        {hasImage ? (
           <div className="space-y-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -178,15 +194,9 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
               className="w-full rounded-xl object-cover max-h-80"
             />
             {!isPosted && (
-              <label className="flex items-center justify-center w-full h-12 rounded-xl border border-slate-600 text-sm text-slate-400 active:bg-slate-800 transition cursor-pointer touch-manipulation">
+              <label className="flex items-center justify-center w-full h-12 rounded-xl border border-slate-600 text-sm text-slate-400 active:bg-slate-800 cursor-pointer touch-manipulation">
                 🔄 画像を差し替える
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture={undefined}
-                  className="hidden"
-                  onChange={handleInputChange}
-                />
+                <input type="file" accept="image/*" className="hidden" onChange={handleInputChange} />
               </label>
             )}
           </div>
@@ -205,21 +215,15 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
               </div>
             ) : (
               <label className="flex flex-col items-center justify-center gap-3 p-8 cursor-pointer touch-manipulation">
-                <span className="text-4xl opacity-40">🖼</span>
+                <span className="text-4xl opacity-30">🖼</span>
                 <div className="text-center">
                   <p className="text-slate-300 text-sm font-medium">タップして写真を選択</p>
                   <p className="text-slate-600 text-xs mt-0.5">またはドラッグ＆ドロップ・Ctrl+V</p>
                 </div>
-                <span className="rounded-xl bg-pink-700 active:bg-pink-800 px-6 py-3 text-sm font-semibold text-white touch-manipulation">
+                <span className="w-full rounded-xl bg-pink-700 active:bg-pink-800 py-3 text-center text-sm font-semibold text-white touch-manipulation">
                   フォトライブラリから選ぶ
                 </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture={undefined}
-                  className="hidden"
-                  onChange={handleInputChange}
-                />
+                <input type="file" accept="image/*" className="hidden" onChange={handleInputChange} />
               </label>
             )}
           </div>
@@ -229,7 +233,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
       {/* Pollo AI プロンプト */}
       <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-4">
         <h3 className="text-sm font-semibold text-slate-300 mb-1">🎨 Pollo AI プロンプト</h3>
-        <p className="text-xs text-slate-500 mb-3">このプロンプトをPollo AIに貼り付けて花の画像を生成してください。</p>
+        <p className="text-xs text-slate-500 mb-3">このプロンプトを Pollo AI に貼り付けて花の画像を生成してください。</p>
         <div className="rounded-xl bg-slate-800 p-3 text-xs text-slate-300 leading-relaxed select-all mb-3">
           {post.imagePrompt}
         </div>
@@ -255,12 +259,12 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
         <textarea
           value={tweetText}
           onChange={(e) => setTweetText(e.target.value)}
-          disabled={isPosted}
+          disabled={isPosted || isScheduled}
           rows={6}
           className="w-full rounded-xl bg-slate-800 border border-slate-700 p-3 text-sm text-slate-200 leading-relaxed resize-none focus:outline-none focus:border-pink-600 disabled:opacity-60"
         />
 
-        {!isPosted && (
+        {!isPosted && !isScheduled && (
           <button
             onClick={handleSaveText}
             className="w-full h-11 rounded-xl border border-slate-600 text-sm text-slate-400 active:bg-slate-800 transition touch-manipulation"
@@ -278,32 +282,47 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
         )}
       </div>
 
-      {/* 投稿ボタン */}
+      {/* 予約ボタン / 予約済み表示 */}
       {!isPosted && (
-        <button
-          onClick={handlePost}
-          disabled={!canPost}
-          className="w-full h-16 rounded-2xl bg-pink-700 active:bg-pink-800 disabled:opacity-40 disabled:cursor-not-allowed text-lg font-bold text-white transition touch-manipulation shadow-lg shadow-pink-900/30"
-        >
-          {isPending
-            ? '投稿中...'
-            : post.status === 'draft'
-              ? '画像をアップロードしてください'
-              : '🌸 Twitterに投稿する'}
-        </button>
+        isScheduled ? (
+          <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 p-5 text-center space-y-1">
+            <p className="text-blue-300 font-semibold text-base">🕐 自動投稿を予約済み</p>
+            <p className="text-xs text-slate-400">予定時刻: {scheduledJST}</p>
+            <p className="text-xs text-slate-500">時刻になると自動でツイートされます</p>
+          </div>
+        ) : (
+          <button
+            onClick={handleSchedule}
+            disabled={!canSchedule || isPending}
+            className="w-full h-16 rounded-2xl bg-pink-700 active:bg-pink-800 disabled:opacity-40 disabled:cursor-not-allowed text-base font-bold text-white transition touch-manipulation shadow-lg shadow-pink-900/30"
+          >
+            {isPending
+              ? '予約中...'
+              : !hasImage
+                ? '先に画像をアップロードしてください'
+                : `🌸 Schedule Post（予約する）`}
+          </button>
+        )
       )}
 
-      {isPosted && post.tweetId && (
+      {isPosted && (
         <div className="rounded-2xl border border-green-800/40 bg-green-950/30 p-5 text-center space-y-2">
-          <p className="text-green-400 font-semibold text-base">投稿完了 ✅</p>
-          <a
-            href={`https://twitter.com/i/web/status/${post.tweetId}`}
-            target="_blank"
-            rel="noreferrer"
-            className="block text-sm text-blue-400 underline underline-offset-2"
-          >
-            Twitterで確認する →
-          </a>
+          <p className="text-green-400 font-semibold text-base">✅ 投稿完了</p>
+          {post.postedAt && (
+            <p className="text-xs text-slate-400">
+              {new Date(post.postedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
+            </p>
+          )}
+          {post.tweetId && (
+            <a
+              href={`https://twitter.com/i/web/status/${post.tweetId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-sm text-blue-400 underline underline-offset-2"
+            >
+              Twitter で確認する →
+            </a>
+          )}
         </div>
       )}
 
@@ -311,5 +330,20 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
         <p className="text-sm text-center text-slate-300 py-1">{message}</p>
       )}
     </div>
+  )
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    draft:   { label: '未予約',   cls: 'bg-yellow-900/50 text-yellow-300' },
+    ready:   { label: '予約済み', cls: 'bg-blue-900/50 text-blue-300' },
+    posted:  { label: '投稿済み', cls: 'bg-green-900/50 text-green-300' },
+    skipped: { label: 'スキップ', cls: 'bg-gray-800 text-gray-400' },
+  }
+  const s = map[status] ?? { label: status, cls: 'bg-gray-800 text-gray-400' }
+  return (
+    <span className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${s.cls}`}>
+      {s.label}
+    </span>
   )
 }
