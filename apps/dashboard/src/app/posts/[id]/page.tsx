@@ -118,13 +118,14 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
   }
 
   // ── 今すぐ投稿（テスト用） ────────────────────────────────────────
-  const handlePostNow = () => {
-    if (!confirm('今すぐ Twitter に投稿します。よろしいですか？')) return
+  const postNow = (textOnly: boolean) => {
+    const label = textOnly ? 'テキストのみで投稿（画像なし）' : '今すぐ Twitter に投稿'
+    if (!confirm(`${label}します。よろしいですか？`)) return
     startTransition(async () => {
       const res = await fetch(`/api/posts/${params.id}/post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tweetText }),
+        body: JSON.stringify({ tweetText, textOnly }),
       })
       const data = await res.json()
       if (data.ok) {
@@ -339,14 +340,25 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
       )}
 
       {/* 今すぐ投稿（テスト用） */}
-      {!isPosted && hasImage && (
-        <button
-          onClick={handlePostNow}
-          disabled={isPending}
-          className="w-full h-12 rounded-xl border border-orange-700/60 text-orange-400 text-sm font-semibold active:bg-orange-900/20 disabled:opacity-40 transition touch-manipulation"
-        >
-          {isPending ? '投稿中...' : '⚡ 今すぐ投稿（テスト）'}
-        </button>
+      {!isPosted && (
+        <div className="space-y-2">
+          {hasImage && (
+            <button
+              onClick={() => postNow(false)}
+              disabled={isPending}
+              className="w-full h-12 rounded-xl border border-orange-700/60 text-orange-400 text-sm font-semibold active:bg-orange-900/20 disabled:opacity-40 transition touch-manipulation"
+            >
+              {isPending ? '投稿中...' : '⚡ 今すぐ投稿（メディアあり）'}
+            </button>
+          )}
+          <button
+            onClick={() => postNow(true)}
+            disabled={isPending}
+            className="w-full h-11 rounded-xl border border-slate-600 text-slate-500 text-xs font-medium active:bg-slate-800/40 disabled:opacity-40 transition touch-manipulation"
+          >
+            {isPending ? '投稿中...' : '📝 テキストのみで投稿（API疎通確認）'}
+          </button>
+        </div>
       )}
 
       {isPosted && (
