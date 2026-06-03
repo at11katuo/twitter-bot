@@ -8,17 +8,26 @@ import os
 import re
 import time
 import urllib.request
-import urllib.parse
 from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+import fal_client
 
 load_dotenv()
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+FAL_KEY        = os.environ.get("FAL_KEY", "")   # fal.ai APIキー
 QUEUE_DIR      = Path("queue")
 QUEUE_DIR.mkdir(exist_ok=True)
+
+# ------------------------------------------------------------------ #
+# 使用モデル（変更する場合はここだけ書き換える）
+# fal-ai/flux-realism    : 実写特化・着物美女に最適 ★推奨
+# fal-ai/flux/dev        : 品質・コストバランス
+# fal-ai/flux-pro/v1.1   : 最高品質（高コスト）
+# ------------------------------------------------------------------ #
+FAL_MODEL = "fal-ai/flux-realism"
 
 # ------------------------------------------------------------------ #
 # キャラクター固定ベースプロンプト
@@ -128,11 +137,30 @@ def generate_content(theme: str = "") -> tuple[str, str]:
 
 
 def download_image(prompt: str, save_path: Path, width: int = 1024, height: int = 1024) -> None:
-    """Pollinations.ai からプロンプトで画像を生成してダウンロードする。"""
-    encoded = urllib.parse.quote(prompt)
-    url = f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&nologo=true"
-    print(f"[画像生成] {url[:100]}...")
-    urllib.request.urlretrieve(url, save_path)
+    """fal.ai (FAL_MODEL) でプロンプトから画像を生成してダウンロードする。"""
+    if not FAL_KEY:
+        raise RuntimeError("FAL_KEY が未設定です。.env または環境変数に追加してください。")
+
+    os.environ["FAL_KEY"] = FAL_KEY  # fal_client が env から読む
+
+    print(f"[画像生成] モデル: {FAL_MODEL}")
+    print(f"[プロンプト] {prompt[:80]}...")
+
+    result = fal_client.run(
+        FAL_MODEL,
+        arguments={
+            "prompt": prompt,
+            "image_size": "square_hd",   # 1024x1024
+            "num_inference_steps": 28,
+            "guidance_scale": 3.5,
+            "num_images": 1,
+            "enable_safety_checker": True,
+        },
+    )
+
+    image_url = result["images"][0]["url"]
+    print(f"[ダウンロード] {image_url[:80]}...")
+    urllib.request.urlretrieve(image_url, save_path)
     print(f"[保存] {save_path}")
 
 
