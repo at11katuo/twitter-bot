@@ -15,6 +15,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
+  // Internal API calls from generator.py use X-Internal-Secret header
+  const internalSecret = req.headers.get('x-internal-secret')
+  if (internalSecret && internalSecret === expectedToken()) {
+    return NextResponse.next()
+  }
+
   const token = req.cookies.get(COOKIE_NAME)?.value
   if (token === expectedToken()) {
     return NextResponse.next()

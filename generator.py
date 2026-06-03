@@ -1,14 +1,18 @@
 """
 generator.py
-Gemini でツイート文＋Pollinations.ai 画像プロンプトを自動生成し、
-queue/ に {連番}.txt / {連番}.png を保存する。
+Gemini でツイート文＋画像プロンプトを生成し、
+Pollinations.ai で画像をダウンロードしてダッシュボードDBに直接保存する。
 """
 
 import os
 import re
 import time
+import base64
 import urllib.request
 import urllib.parse
+import urllib.error
+import json
+import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
@@ -16,13 +20,18 @@ from google.genai import types
 
 load_dotenv()
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-QUEUE_DIR      = Path("queue")
-QUEUE_DIR.mkdir(exist_ok=True)
+GEMINI_API_KEY       = os.environ.get("GEMINI_API_KEY", "")
+DASHBOARD_BASIC_USER = os.environ.get("DASHBOARD_BASIC_USER", "admin").strip()
+DASHBOARD_BASIC_PASS = os.environ.get("DASHBOARD_BASIC_PASS", "changeme").strip()
+DASHBOARD_URL        = os.environ.get("DASHBOARD_URL", "http://localhost:3001")
+
+# Internal API secret = same base64 token used for cookie auth
+INTERNAL_SECRET = base64.b64encode(
+    f"{DASHBOARD_BASIC_USER}:{DASHBOARD_BASIC_PASS}".encode()
+).decode()
 
 # ------------------------------------------------------------------ #
 # キャラクター固定ベースプロンプト
-# このベース要素は絶対に変えない。背景・表情・ポーズのみ肉付けする。
 # ------------------------------------------------------------------ #
 IMAGE_BASE = (
     "photorealistic portrait of a beautiful 20-year-old Japanese woman "
@@ -30,7 +39,7 @@ IMAGE_BASE = (
 )
 
 # ------------------------------------------------------------------ #
-# システムプロンプト（Gemini へのペルソナ＆指示）
+# システムプロンプト
 # ------------------------------------------------------------------ #
 SYSTEM_PROMPT = """あなたは日本の伝統美とAIアートを発信するTwitterアカウント「凛（Rin）」のコンテンツジェネレーターです。
 
@@ -61,55 +70,34 @@ IMAGE_PROMPT: {Pollinations.ai用英語プロンプト（1行）}
 TWEET: {ツイート本文（日本語）}"""
 
 
-def _next_index() -> int:
-    """queue/ 内の既存ファイルから次の連番を決定する。"""
-    existing = list(QUEUE_DIR.glob("[0-9]*.txt")) + list(QUEUE_DIR.glob("[0-9]*.png")) + list(QUEUE_DIR.glob("[0-9]*.jpeg"))
-    if not existing:
-        return 1
-    nums = []
-    for f in existing:
-        m = re.match(r"(\d+)", f.stem)
-        if m:
-            nums.append(int(m.group(1)))
-    return max(nums) + 1 if nums else 1
-
-
 def generate_content(theme: str = "") -> tuple[str, str]:
-    """
-    Gemini でその日のテーマに合った画像プロンプトとツイート文を生成する。
-    Returns (image_prompt, tweet_text)
-    """
+    """Returns (image_prompt, tweet_text)"""
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY が未設定です。")
 
     client = genai.Client(api_key=GEMINI_API_KEY)
-
     user_message = (
         f"今日のテーマ：{theme}" if theme
         else "今日の季節感や情景を自由に想像して、凛（Rin）らしい投稿を1件生成してください。"
     )
 
-    max_retries = 3
-    for attempt in range(1, max_retries + 1):
+    for attempt in range(1, 4):
         try:
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=user_message,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                ),
+                config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
             )
             text = response.text.strip()
             break
         except Exception as e:
-            print(f"[警告] Gemini 生成失敗 (試行 {attempt}/{max_retries}): {e}")
-            if attempt < max_retries:
+            print(f"[警告] Gemini 生成失敗 (試行 {attempt}/3): {e}")
+            if attempt < 3:
                 print("60秒待機して再試行...")
                 time.sleep(60)
     else:
         raise RuntimeError("Gemini API の呼び出しが3回すべて失敗しました。")
 
-    # IMAGE_PROMPT / TWEET を抽出
     img_match   = re.search(r"IMAGE_PROMPT:\s*(.+)", text)
     tweet_match = re.search(r"TWEET:\s*(.+)", text, re.DOTALL)
 
@@ -119,7 +107,6 @@ def generate_content(theme: str = "") -> tuple[str, str]:
     image_prompt = img_match.group(1).strip()
     tweet_text   = tweet_match.group(1).strip()
 
-    # ベース要素が含まれているか検証・補完
     if IMAGE_BASE[:50] not in image_prompt:
         print("[警告] ベース要素が欠落しているため先頭に挿入します。")
         image_prompt = IMAGE_BASE + ", " + image_prompt
@@ -127,36 +114,88 @@ def generate_content(theme: str = "") -> tuple[str, str]:
     return image_prompt, tweet_text
 
 
-def download_image(prompt: str, save_path: Path, width: int = 1024, height: int = 1024) -> None:
-    """Pollinations.ai からプロンプトで画像を生成してダウンロードする。"""
-    encoded = urllib.parse.quote(prompt)
-    url = f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&nologo=true"
-    print(f"[画像生成] {url[:100]}...")
-    urllib.request.urlretrieve(url, save_path)
-    print(f"[保存] {save_path}")
+def create_post(tweet_text: str, image_prompt: str) -> str:
+    """ダッシュボード API に下書き投稿を作成し、post ID を返す。"""
+    url = f"{DASHBOARD_URL}/api/posts/new"
+    payload = json.dumps({
+        "tweetText": tweet_text,
+        "imagePrompt": image_prompt,
+        "slot": "evening",
+        "theme": "hana-daily",
+        "themeName": "Daily Post",
+    }).encode()
+
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "X-Internal-Secret": INTERNAL_SECRET,
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=15) as res:
+        data = json.loads(res.read())
+
+    post_id = data.get("id")
+    if not post_id:
+        raise RuntimeError(f"ダッシュボード API からIDが返りませんでした: {data}")
+    print(f"[DB保存] 下書き作成完了 — post ID: {post_id}")
+    return post_id
+
+
+def upload_image(post_id: str, image_prompt: str) -> None:
+    """Pollinations.ai から画像を生成してダッシュボードにアップロードする。"""
+    encoded = urllib.parse.quote(image_prompt)
+    img_url = f"https://image.pollinations.ai/prompt/{encoded}?width=1024&height=1024&nologo=true"
+    print(f"[画像生成] {img_url[:100]}...")
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        tmp_path = tmp.name
+
+    urllib.request.urlretrieve(img_url, tmp_path)
+    print(f"[画像DL] 一時ファイル: {tmp_path}")
+
+    upload_url = f"{DASHBOARD_URL}/api/upload/{post_id}"
+    boundary = "----FormBoundary7MA4YWxkTrZu0gW"
+
+    with open(tmp_path, "rb") as f:
+        img_data = f.read()
+
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="image"; filename="image.png"\r\n'
+        f"Content-Type: image/png\r\n\r\n"
+    ).encode() + img_data + f"\r\n--{boundary}--\r\n".encode()
+
+    req = urllib.request.Request(
+        upload_url,
+        data=body,
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "X-Internal-Secret": INTERNAL_SECRET,
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as res:
+        result = json.loads(res.read())
+    print(f"[画像保存] {result}")
+
+    Path(tmp_path).unlink(missing_ok=True)
 
 
 def run(theme: str = "", count: int = 1) -> None:
-    """
-    theme: 今日の投稿テーマ（空白なら Gemini が自由生成）
-    count: 生成件数
-    """
     for i in range(count):
-        idx = _next_index()
-        print(f"\n=== 生成 {i+1}/{count}（queue番号: {idx:02d}）===")
+        print(f"\n=== 生成 {i+1}/{count} ===")
 
         image_prompt, tweet_text = generate_content(theme)
-
         print(f"[プロンプト] {image_prompt}")
         print(f"[ツイート]  {tweet_text}")
 
-        img_path = QUEUE_DIR / f"{idx:02d}.png"
-        txt_path = QUEUE_DIR / f"{idx:02d}.txt"
+        post_id = create_post(tweet_text, image_prompt)
+        upload_image(post_id, image_prompt)
 
-        download_image(image_prompt, img_path)
-        txt_path.write_text(tweet_text, encoding="utf-8")
-
-        print(f"[完了] {img_path.name} + {txt_path.name} を queue/ に保存しました。")
+        print(f"[完了] ダッシュボードに下書きを保存しました (ID: {post_id})")
 
         if i < count - 1:
             time.sleep(3)
