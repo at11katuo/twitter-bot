@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
+    "@fal-ai/client": "^1.10.1",
     "@hana/db": "workspace:*",
     "@hana/shared": "workspace:*",
     "next": "^14.2.18",
