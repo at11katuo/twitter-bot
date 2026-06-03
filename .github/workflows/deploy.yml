@@ -40,6 +40,8 @@ jobs:
             echo "TWITTER_ACCESS_TOKEN_SECRET=${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}" >> .env
             echo "DASHBOARD_BASIC_USER=${{ secrets.HANA_BASIC_USER }}" >> .env
             echo "DASHBOARD_BASIC_PASS=${{ secrets.HANA_BASIC_PASS }}" >> .env
+            echo "FAL_KEY=${{ secrets.FAL_KEY }}" >> .env
+            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
 
             echo "==> docker compose build"
             DOCKER_BUILDKIT=1 docker compose build
