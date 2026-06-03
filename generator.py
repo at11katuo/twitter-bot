@@ -8,8 +8,12 @@ generator.py
 
 import os
 import re
+import sys
 import time
 import urllib.request
+
+if sys.stdout.encoding != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
@@ -26,7 +30,7 @@ QUEUE_DIR.mkdir(exist_ok=True)
 # ------------------------------------------------------------------ #
 # モデル設定（変更はここだけ）
 # ------------------------------------------------------------------ #
-FAL_MODEL_CHARACTER  = "fal-ai/consistent-character"  # キャラクター一貫性モデル
+FAL_MODEL_CHARACTER  = "fal-ai/instant-character"     # キャラクター一貫性モデル
 FAL_MODEL_REFERENCE  = "fal-ai/flux-realism"          # 初回リファレンス生成用
 
 # ------------------------------------------------------------------ #
