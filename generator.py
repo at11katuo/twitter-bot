@@ -52,6 +52,7 @@ REFERENCE_URL_CACHE  = Path("reference_url.txt")
 
 REFERENCE_PROMPT = (
     "A photorealistic portrait of a beautiful 20-year-old Japanese woman "
+    "with a soft rounded jawline and gentle oval face shape, "
     "wearing an elegant floral kimono, standing in a traditional Japanese garden, "
     "soft natural sunlight, shot on 35mm lens, highly detailed, 8k, "
     "serene expression, looking at camera, upper body shot"
