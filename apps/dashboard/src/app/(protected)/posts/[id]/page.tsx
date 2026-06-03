@@ -26,14 +26,16 @@ function slotEmoji(slot: string) {
 
 export default function PostDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const [post, setPost]         = useState<PostDetail | null>(null)
+  const [post, setPost]           = useState<PostDetail | null>(null)
   const [tweetText, setTweetText] = useState('')
   const [uploading, setUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const [message, setMessage]   = useState('')
+  const [message, setMessage]     = useState('')
   const [promptCopied, setPromptCopied] = useState(false)
   const [textCopied, setTextCopied]     = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
 
   useEffect(() => {
     fetch(`/api/posts/${params.id}`)
@@ -104,7 +106,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     if (res.ok) setMessage('💾 テキストを保存しました')
   }
 
-  // ── 本文コピー（ハッシュタグ含む全文） ───────────────────────────
+  // ── 本文コピー ───────────────────────────────────────────────────
   const handleCopyText = async () => {
     await navigator.clipboard.writeText(tweetText)
     setTextCopied(true)
@@ -119,7 +121,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     setTimeout(() => setPromptCopied(false), 2000)
   }
 
-  // ── 投稿済みにする ────────────────────────────────────────────────
+  // ── 投稿済み ──────────────────────────────────────────────────────
   const handleMarkDone = () => {
     startTransition(async () => {
       const res = await fetch(`/api/posts/${params.id}`, {
@@ -134,25 +136,100 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
     })
   }
 
+  // ── 却下 ─────────────────────────────────────────────────────────
+  const handleReject = () => {
+    startTransition(async () => {
+      const res = await fetch(`/api/posts/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'skipped' }),
+      })
+      if (res.ok) {
+        setPost((p) => p ? { ...p, status: 'skipped' } : p)
+        setMessage('⏭ 却下しました')
+      }
+    })
+  }
+
+  // ── 削除 ─────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    const res = await fetch(`/api/posts/${params.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      router.replace('/')
+    } else {
+      setMessage('❌ 削除に失敗しました')
+      setShowDeleteConfirm(false)
+    }
+  }
+
+  // ── ツイート文再生成 ──────────────────────────────────────────────
+  const handleRegenerate = async () => {
+    setRegenerating(true)
+    setMessage('')
+    const res = await fetch(`/api/posts/${params.id}/regenerate`, { method: 'POST' })
+    if (res.ok) {
+      const data = await res.json()
+      setTweetText(data.tweetText)
+      setPost((p) => p ? { ...p, tweetText: data.tweetText } : p)
+      setMessage('🔄 ツイート文を再生成しました')
+    } else {
+      setMessage('❌ 再生成に失敗しました')
+    }
+    setRegenerating(false)
+  }
+
   if (!post) return (
     <div className="flex items-center justify-center min-h-[50vh]">
       <p className="text-slate-400 text-sm">読み込み中...</p>
     </div>
   )
 
-  const isDone   = post.status === 'done'
-  const hasMedia = Boolean(post.imagePath)
+  const isDone    = post.status === 'done' || post.status === 'posted'
+  const isSkipped = post.status === 'skipped'
+  const hasMedia  = Boolean(post.imagePath)
   const scheduledJST = new Date(post.scheduledAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
 
   return (
     <div className="space-y-4 pb-10">
       {/* 戻るボタン */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-1 text-sm text-slate-400 active:text-white py-2 touch-manipulation"
-      >
-        ← 一覧に戻る
-      </button>
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1 text-sm text-slate-400 active:text-white py-2 touch-manipulation"
+        >
+          ← 一覧に戻る
+        </button>
+        {!isDone && (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="text-sm text-red-400 active:text-red-300 py-2 px-3 touch-manipulation"
+          >
+            🗑 削除
+          </button>
+        )}
+      </div>
+
+      {/* 削除確認ダイアログ */}
+      {showDeleteConfirm && (
+        <div className="rounded-2xl border border-red-800/60 bg-red-950/40 p-5 space-y-3">
+          <p className="text-sm font-semibold text-red-300 text-center">本当に削除しますか？</p>
+          <p className="text-xs text-slate-400 text-center">この操作は元に戻せません</p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="flex-1 h-11 rounded-xl border border-slate-600 text-sm text-slate-300 active:bg-slate-800 touch-manipulation"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleDelete}
+              className="flex-1 h-11 rounded-xl bg-red-700 active:bg-red-800 text-sm font-bold text-white touch-manipulation"
+            >
+              削除する
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ヘッダーカード */}
       <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-4">
@@ -220,27 +297,28 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Pollo AI プロンプト */}
-      <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-4">
-        <h3 className="text-sm font-semibold text-slate-300 mb-1">🎨 Pollo AI プロンプト</h3>
-        <p className="text-xs text-slate-500 mb-3">Pollo AI に貼り付けて花の画像・動画を生成してください。</p>
-        <div className="rounded-xl bg-slate-800 p-3 text-xs text-slate-300 leading-relaxed select-all mb-3">
-          {post.imagePrompt}
+      {post.imagePrompt && (
+        <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-4">
+          <h3 className="text-sm font-semibold text-slate-300 mb-1">🎨 画像プロンプト</h3>
+          <div className="rounded-xl bg-slate-800 p-3 text-xs text-slate-300 leading-relaxed select-all mb-3">
+            {post.imagePrompt}
+          </div>
+          <button
+            onClick={handleCopyPrompt}
+            className={`w-full h-12 rounded-xl text-sm font-semibold transition touch-manipulation ${
+              promptCopied ? 'bg-green-800 text-green-200' : 'bg-slate-700 active:bg-slate-600 text-slate-200'
+            }`}
+          >
+            {promptCopied ? '✅ コピーしました！' : '📋 プロンプトをコピー'}
+          </button>
         </div>
-        <button
-          onClick={handleCopyPrompt}
-          className={`w-full h-12 rounded-xl text-sm font-semibold transition touch-manipulation ${
-            promptCopied ? 'bg-green-800 text-green-200' : 'bg-slate-700 active:bg-slate-600 text-slate-200'
-          }`}
-        >
-          {promptCopied ? '✅ コピーしました！' : '📋 プロンプトをコピー'}
-        </button>
-      </div>
+      )}
 
-      {/* ツイート本文 + 日本語訳 */}
+      {/* ツイート本文 */}
       <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-300">✍️ ツイート本文</h3>
-          <span className="text-xs text-slate-500">{tweetText.length} chars</span>
+          <span className="text-xs text-slate-500">{tweetText.length} 文字</span>
         </div>
 
         <textarea
@@ -251,7 +329,18 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
           className="w-full rounded-xl bg-slate-800 border border-slate-700 p-3 text-sm text-slate-200 leading-relaxed resize-none focus:outline-none focus:border-pink-600 disabled:opacity-60"
         />
 
-        {/* 本文コピーボタン（最重要・最大サイズ） */}
+        {/* 再生成ボタン */}
+        {!isDone && !isSkipped && (
+          <button
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            className="w-full h-11 rounded-xl bg-violet-800 active:bg-violet-700 disabled:opacity-50 text-sm font-semibold text-white touch-manipulation"
+          >
+            {regenerating ? '⏳ 再生成中...' : '🔄 ツイート文を再生成（AI）'}
+          </button>
+        )}
+
+        {/* 本文コピーボタン */}
         <button
           onClick={handleCopyText}
           className={`w-full h-14 rounded-2xl text-base font-bold transition touch-manipulation shadow-md ${
@@ -263,14 +352,14 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
           {textCopied ? '✅ コピーしました！X アプリに貼り付けてください' : '📋 本文をコピー（ハッシュタグ込み）'}
         </button>
 
-        {!isDone && (
+        {!isDone && !isSkipped && (
           <button onClick={handleSaveText}
             className="w-full h-10 rounded-xl border border-slate-600 text-xs text-slate-500 active:bg-slate-800 transition touch-manipulation">
             💾 テキストを保存
           </button>
         )}
 
-        {/* 日本語訳（カンペ） */}
+        {/* 日本語訳 */}
         {post.japaneseTranslation && (
           <div className="rounded-xl bg-indigo-950/60 border border-indigo-800/40 p-4">
             <p className="text-xs font-semibold text-indigo-400 mb-2">🇯🇵 日本語訳（カンペ）</p>
@@ -279,19 +368,51 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
         )}
       </div>
 
-      {/* 投稿済みにするボタン */}
-      {!isDone ? (
-        <button
-          onClick={handleMarkDone}
-          disabled={isPending}
-          className="w-full h-16 rounded-2xl bg-slate-600 active:bg-slate-500 disabled:opacity-40 text-base font-bold text-white transition touch-manipulation"
-        >
-          {isPending ? '更新中...' : '✅ X に投稿済み（完了にする）'}
-        </button>
-      ) : (
+      {/* 承認 / 却下 ボタン */}
+      {!isDone && !isSkipped && (
+        <div className="flex gap-3">
+          <button
+            onClick={handleReject}
+            disabled={isPending}
+            className="flex-1 h-14 rounded-2xl bg-slate-700 active:bg-slate-600 disabled:opacity-40 text-sm font-bold text-slate-300 transition touch-manipulation"
+          >
+            ❌ 却下
+          </button>
+          <button
+            onClick={handleMarkDone}
+            disabled={isPending}
+            className="flex-[2] h-14 rounded-2xl bg-slate-600 active:bg-slate-500 disabled:opacity-40 text-sm font-bold text-white transition touch-manipulation"
+          >
+            {isPending ? '更新中...' : '✅ X に投稿済み'}
+          </button>
+        </div>
+      )}
+
+      {isDone && (
         <div className="rounded-2xl border border-green-800/40 bg-green-950/30 p-5 text-center">
           <p className="text-green-400 font-semibold text-base">✅ 投稿済み</p>
           <p className="text-xs text-slate-500 mt-1">{scheduledJST}</p>
+        </div>
+      )}
+
+      {isSkipped && (
+        <div className="rounded-2xl border border-slate-700/40 bg-slate-900/40 p-5 text-center space-y-3">
+          <p className="text-slate-400 font-semibold text-base">⏭ 却下済み</p>
+          <button
+            onClick={() => {
+              startTransition(async () => {
+                const res = await fetch(`/api/posts/${params.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'draft' }),
+                })
+                if (res.ok) setPost((p) => p ? { ...p, status: 'draft' } : p)
+              })
+            }}
+            className="text-xs text-slate-500 underline touch-manipulation"
+          >
+            下書きに戻す
+          </button>
         </div>
       )}
 
@@ -304,10 +425,11 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    draft: { label: '未対応',   cls: 'bg-yellow-900/50 text-yellow-300' },
-    ready: { label: '準備中',   cls: 'bg-blue-900/50 text-blue-300' },
-    done:  { label: '投稿済み', cls: 'bg-green-900/50 text-green-300' },
-    posted:{ label: '投稿済み', cls: 'bg-green-900/50 text-green-300' },
+    draft:   { label: '未対応',   cls: 'bg-yellow-900/50 text-yellow-300' },
+    ready:   { label: '準備中',   cls: 'bg-blue-900/50 text-blue-300' },
+    done:    { label: '投稿済み', cls: 'bg-green-900/50 text-green-300' },
+    posted:  { label: '投稿済み', cls: 'bg-green-900/50 text-green-300' },
+    skipped: { label: '却下',     cls: 'bg-slate-700 text-slate-400' },
   }
   const s = map[status] ?? { label: status, cls: 'bg-gray-800 text-gray-400' }
   return (
