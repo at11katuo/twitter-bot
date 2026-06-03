@@ -82,4 +82,7 @@ jobs:
               exit 1
             fi
 
+            echo "==> setup cleanup cron"
+            (crontab -l 2>/dev/null | grep -v 'api/cleanup'; echo "0 3 * * * curl -s -X POST http://localhost:3001/api/cleanup >> /home/deployer/twitter-bot/logs/cleanup.log 2>&1") | crontab -
+
             echo "==> deploy complete"

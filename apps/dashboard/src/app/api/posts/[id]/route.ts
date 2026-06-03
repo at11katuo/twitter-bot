@@ -21,13 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const post = await prisma.post.findUnique({ where: { id: params.id } })
   if (!post) return NextResponse.json({ error: 'not found' }, { status: 404 })
-
-  if (post.imagePath) {
-    const mediaDir = process.env.IMAGE_DIR ?? '/app/data/images'
-    const filePath = path.join(mediaDir, post.imagePath)
-    try { fs.unlinkSync(filePath) } catch { /* file may not exist */ }
-  }
-
-  await prisma.post.delete({ where: { id: params.id } })
+  // Soft delete — keeps the record so it can be restored
+  await prisma.post.update({ where: { id: params.id }, data: { deletedAt: new Date() } })
   return NextResponse.json({ ok: true })
 }

@@ -2,6 +2,7 @@ import { prisma } from '@hana/db'
 import GenerateActions from './_components/GenerateActions'
 import GenerateRin from './_components/GenerateRin'
 import PostCardClient from './_components/PostCardClient'
+import TrashSection from './_components/TrashSection'
 import { generateContentAction, generateWeekAction } from '@/server/actions/post'
 
 export const dynamic = 'force-dynamic'
@@ -20,10 +21,18 @@ function formatDateLabel(dateKey: string): string {
 }
 
 export default async function HomePage() {
-  const posts = await prisma.post.findMany({
-    orderBy: { scheduledAt: 'asc' },
-    take: 100,
-  })
+  const [posts, deletedPosts] = await Promise.all([
+    prisma.post.findMany({
+      where: { deletedAt: null },
+      orderBy: { scheduledAt: 'asc' },
+      take: 100,
+    }),
+    prisma.post.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+      take: 50,
+    }),
+  ])
 
   const grouped = new Map<string, typeof posts>()
   for (const post of posts) {
@@ -101,6 +110,15 @@ export default async function HomePage() {
           })}
         </div>
       )}
+
+      {/* ゴミ箱 */}
+      <TrashSection posts={deletedPosts.map((p) => ({
+        id: p.id,
+        tweetText: p.tweetText,
+        themeName: p.themeName,
+        deletedAt: p.deletedAt!.toISOString(),
+        imagePath: p.imagePath,
+      }))} />
     </div>
   )
 }
