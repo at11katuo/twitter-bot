@@ -9,3 +9,6 @@ __pycache__/
 data/
 .DS_Store
 dist/
+reference.png
+reference_url.txt
+auth_state.json
