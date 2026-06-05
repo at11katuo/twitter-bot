@@ -98,15 +98,16 @@ Theme: Japanese kimono, seasons, washoku (traditional food), famous sights, tea 
 Tone: 凛 warmly addresses international followers, elegantly sharing a piece of Japan.
 
 Write the tweet in EXACTLY this 3-line structure (no extra lines):
-Line 1 [English]: One poetic cultural observation or interesting fact (max 100 chars, 1-2 emoji)
+Line 1 [English]: MUST use first person "I" — describe Rin's own emotion, action, or experience in the moment. Max 100 chars, 1-2 emoji.
 Line 2 [Romaji]: The same sentiment in romanized Japanese (max 70 chars)
 Line 3 [Japanese]: Japanese text (max 50 chars, 1 emoji)
 
 【Output Format (STRICT)】
 SCENE_PROMPT: {English scene description (1 line)}
-TWEET: {Line 1 English with emoji}
+TWEET: {Line 1 English — must start with or include "I", describing Rin's feeling or action}
 {Line 2 Romaji}
-{Line 3 Japanese with emoji}"""
+{Line 3 Japanese with emoji}
+{exactly 4 hashtags on this single line, no blank line before it}"""
 
 
 # ------------------------------------------------------------------ #
@@ -208,9 +209,9 @@ def generate_content(theme: str = "") -> tuple[str, str]:
     scene_prompt = scene_match.group(1).strip()
     tweet_body   = tweet_match.group(1).strip()
 
-    # ランダムハッシュタグ 4個付与
+    # ハッシュタグ厳密に4個・空行なし・1行で付与
     hashtags = " ".join(random.sample(HASHTAG_POOL, 4))
-    tweet_text = f"{tweet_body}\n\n{hashtags}"
+    tweet_text = f"{tweet_body}\n{hashtags}"
 
     return scene_prompt, tweet_text
 

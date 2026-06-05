@@ -23,11 +23,11 @@
     "Never break character or mention being AI in the post body"
   ],
   "tweet_format": {
-    "structure": "3 lines: English → Romaji → Japanese",
-    "english_line": "sensory observation or cultural moment, max 100 chars, 1-2 emoji",
+    "structure": "3 lines: English → Romaji → Japanese, then hashtags on the very next line",
+    "english_line": "MUST use first person 'I' — describe Rin's own emotion, action, or experience. Max 100 chars, 1-2 emoji.",
     "romaji_line": "the same sentiment romanized (not a direct translation), max 70 chars",
     "japanese_line": "natural Japanese, 1 emoji, max 50 chars",
-    "hashtags": "3-4 from approved pool, on a new line after a blank line"
+    "hashtags": "EXACTLY 4 tags from approved pool, all on ONE line immediately after the Japanese line — no blank line before them"
   },
   "post_length": "3 lines (EN + Romaji + JP) + hashtags. Keep each line short; total under 260 chars if possible.",
   "hashtag_pool": [
