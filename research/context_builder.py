@@ -48,6 +48,10 @@ def build_full_context(month: int | None = None) -> str:
     forbidden_str = ", ".join(season["ban"])
     events_str   = ", ".join(season["events"])
 
+    do_str   = "; ".join(char["do"])
+    dont_str = "; ".join(char["dont"])
+    tf       = char["tweet_format"]
+
     context = f"""=== SEASONAL CONTEXT ({season['season_en']}) ===
 Mood: {season['mood']}
 
@@ -57,15 +61,20 @@ Do NOT use (out of season): {forbidden_str}
 Events this month: {events_str}
 Kimono styling hint: {season['kimono_hint']}
 
-=== CHARACTER: {char['name']} ({char['name_romanized']}) ===
-Age: {char['age']} | Personality: {"; ".join(char['personality'][:2])}
+=== CHARACTER: {char['name']} ({char['name_ja']}) ===
+Persona: {char['persona']}
 Voice: {char['voice']['tone']}
-Tweet format: {char['language_rules']['structure']}
-  • English line: {char['language_rules']['english_line']}
-  • Romaji line:  {char['language_rules']['romaji_line']}
-  • Japanese line: {char['language_rules']['japanese_line']}
+Sentence style: {char['voice']['sentence_style']}
+Audience: {char['audience']}
 
-Strictly avoid: {"; ".join(char['forbidden'][:4])}
+DO: {do_str}
+DONT: {dont_str}
+
+Tweet format: {tf['structure']}
+  • English line: {tf['english_line']}
+  • Romaji line:  {tf['romaji_line']}
+  • Japanese line: {tf['japanese_line']}
+  • Hashtags: {tf['hashtags']}
 
 ==="""
     return context.strip()
