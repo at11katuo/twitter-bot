@@ -135,9 +135,8 @@ def post_with_image(tweet_text: str, image_path: str, api_v1, client_v2) -> str:
     media = api_v1.media_upload(filename=image_path)
     media_id = str(media.media_id)
     logger.info(f"[投稿] 画像アップロード完了 media_id={media_id}")
-    # v1.1 update_status でツイート投稿（v2 create_tweet は有料プランが必要なため）
-    status = api_v1.update_status(status=tweet_text, media_ids=[media_id])
-    return str(status.id)
+    response = client_v2.create_tweet(text=tweet_text, media_ids=[media_id])
+    return response.data["id"]
 
 
 def post_with_video(tweet_text: str, video_path: str, api_v1, client_v2) -> str:
@@ -164,8 +163,8 @@ def post_with_video(tweet_text: str, video_path: str, api_v1, client_v2) -> str:
         media = api_v1.get_media_upload_status(media_id)
         processing_info = getattr(media, "processing_info", None)
 
-    status = api_v1.update_status(status=tweet_text, media_ids=[media_id])
-    return str(status.id)
+    response = client_v2.create_tweet(text=tweet_text, media_ids=[media_id])
+    return response.data["id"]
 
 
 # ------------------------------------------------------------------ #
