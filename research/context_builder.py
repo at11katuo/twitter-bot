@@ -29,7 +29,7 @@ def get_season_data(month: int | None = None) -> dict:
         jst = datetime.timezone(datetime.timedelta(hours=9))
         month = datetime.datetime.now(jst).month
     calendar = _load_json(_CALENDAR_PATH)
-    return calendar["months"][str(month)]
+    return calendar[str(month)]
 
 
 def get_character_profile() -> dict:
@@ -44,20 +44,17 @@ def build_full_context(month: int | None = None) -> str:
     season = get_season_data(month)
     char   = get_character_profile()
 
-    allowed_str  = ", ".join(season["motifs"]["allowed"])
-    forbidden_str = ", ".join(season["motifs"]["forbidden"])
+    allowed_str  = ", ".join(season["allow"])
+    forbidden_str = ", ".join(season["ban"])
     events_str   = ", ".join(season["events"])
-    colors_str   = ", ".join(season["colors"])
 
-    context = f"""=== SEASONAL CONTEXT ({season['name_en']} / {season['name_ja']}) ===
-Season: {season['season']}
+    context = f"""=== SEASONAL CONTEXT ({season['season_en']}) ===
 Mood: {season['mood']}
 
-✅ Use these motifs this month: {allowed_str}
-❌ Do NOT use these motifs (out of season): {forbidden_str}
+Use these motifs: {allowed_str}
+Do NOT use (out of season): {forbidden_str}
 
-Notable events/occasions: {events_str}
-Seasonal color palette: {colors_str}
+Events this month: {events_str}
 Kimono styling hint: {season['kimono_hint']}
 
 === CHARACTER: {char['name']} ({char['name_romanized']}) ===
@@ -76,12 +73,12 @@ Strictly avoid: {"; ".join(char['forbidden'][:4])}
 
 def get_forbidden_motifs(month: int | None = None) -> list[str]:
     """今月の禁止モチーフリストを返す（プロンプト検証用）。"""
-    return get_season_data(month)["motifs"]["forbidden"]
+    return get_season_data(month)["ban"]
 
 
 def get_allowed_motifs(month: int | None = None) -> list[str]:
     """今月の推奨モチーフリストを返す。"""
-    return get_season_data(month)["motifs"]["allowed"]
+    return get_season_data(month)["allow"]
 
 
 if __name__ == "__main__":

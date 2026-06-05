@@ -1,160 +1,99 @@
 {
-  "months": {
-    "1": {
-      "name_ja": "睦月",
-      "name_en": "January",
-      "season": "winter",
-      "mood": "crisp, solemn, hopeful — new year's stillness",
-      "motifs": {
-        "allowed": ["plum blossoms (ume)", "pine (matsu)", "bamboo (take)", "snow scenery", "new year's dawn", "kadomatsu", "hatsuhinode (first sunrise)", "mochi", "kagami mochi"],
-        "forbidden": ["cherry blossoms", "sunflowers", "autumn leaves"]
-      },
-      "events": ["New Year (Oshōgatsu)", "Coming of Age Day (Seijin no Hi)", "Hatsumode"],
-      "colors": ["white", "crimson red", "gold", "pine green"],
-      "kimono_hint": "formal furisode or houmongi in red, white, or gold with pine-bamboo-plum (shōchikubai) patterns"
-    },
-    "2": {
-      "name_ja": "如月",
-      "name_en": "February",
-      "season": "late winter",
-      "mood": "quiet anticipation — winter ending, early signs of spring",
-      "motifs": {
-        "allowed": ["plum blossoms (ume)", "camellia (tsubaki)", "early spring light", "setsubun beans", "snow melting"],
-        "forbidden": ["cherry blossoms", "autumn leaves", "summer fireworks"]
-      },
-      "events": ["Setsubun (bean-throwing)", "Valentine's Day"],
-      "colors": ["pale pink", "deep crimson", "ivory", "sage green"],
-      "kimono_hint": "camellia or plum blossom patterns on pale pink or ivory ground"
-    },
-    "3": {
-      "name_ja": "弥生",
-      "name_en": "March",
-      "season": "early spring",
-      "mood": "gentle awakening — soft light, gradual warmth",
-      "motifs": {
-        "allowed": ["cherry blossoms just budding", "peach blossoms (momo)", "butterflies", "hina dolls", "spring mist", "early wildflowers"],
-        "forbidden": ["autumn leaves", "snow", "summer heat"]
-      },
-      "events": ["Hinamatsuri (Doll's Festival, Mar 3)", "Spring equinox (Shunbun)"],
-      "colors": ["cherry pink", "peach", "soft green", "pale gold"],
-      "kimono_hint": "hanami-style furisode with peach or early cherry blossoms, soft pastels"
-    },
-    "4": {
-      "name_ja": "卯月",
-      "name_en": "April",
-      "season": "spring",
-      "mood": "peak bloom — joyful, fleeting, bittersweet beauty",
-      "motifs": {
-        "allowed": ["cherry blossoms (sakura) in full bloom", "falling petals", "green tea fields", "cherry blossom viewing (hanami)", "spring rain", "wisteria beginning"],
-        "forbidden": ["plum blossoms", "autumn leaves", "snow"]
-      },
-      "events": ["Hanami (cherry blossom viewing)", "Showa Day"],
-      "colors": ["soft pink", "white", "pale green", "light blue sky"],
-      "kimono_hint": "sakura-patterned kimono in soft pinks or whites — the classic hanami look"
-    },
-    "5": {
-      "name_ja": "皐月",
-      "name_en": "May",
-      "season": "late spring",
-      "mood": "vibrant and fresh — golden light, iris fields",
-      "motifs": {
-        "allowed": ["wisteria (fuji)", "iris (kakitsubata)", "carp streamers (koinobori)", "fresh greenery", "muguet (lily of the valley)", "tea picking"],
-        "forbidden": ["cherry blossoms (peaked)", "snow", "autumn motifs"]
-      },
-      "events": ["Golden Week", "Children's Day (Kodomo no Hi, May 5)", "Hana Matsuri afterglow"],
-      "colors": ["purple", "deep green", "sky blue", "white"],
-      "kimono_hint": "iris or wisteria patterns in purple and green, informal hitoe (unlined) appropriate"
-    },
-    "6": {
-      "name_ja": "水無月",
-      "name_en": "June",
-      "season": "early summer (rainy season)",
-      "mood": "misty, introspective, lush — rain softens everything",
-      "motifs": {
-        "allowed": ["hydrangea (ajisai)", "rain drops", "fireflies (hotaru)", "snails", "morning mist", "koi in rain", "iris in water"],
-        "forbidden": ["cherry blossoms", "autumn leaves", "snow", "dry sunny summer imagery"]
-      },
-      "events": ["Minazuki (water month)", "Nagoshi no Harae (purification, Jun 30)"],
-      "colors": ["periwinkle blue", "soft purple", "misty white", "deep green"],
-      "kimono_hint": "ajisai (hydrangea) patterns in blue-purple on linen or cotton fabric for humidity"
-    },
-    "7": {
-      "name_ja": "文月",
-      "name_en": "July",
-      "season": "midsummer",
-      "mood": "vivid, festive, electric — Tanabata stars and festival heat",
-      "motifs": {
-        "allowed": ["Tanabata stars", "morning glory (asagao)", "summer fireworks", "goldfish", "wind chimes (furin)", "cool water", "summer festivals (matsuri)"],
-        "forbidden": ["autumn leaves", "snow", "spring blossoms", "rainy season imagery"]
-      },
-      "events": ["Tanabata (Star Festival, Jul 7)", "Obon preparations", "summer matsuri"],
-      "colors": ["midnight blue", "gold", "vermillion", "bright white"],
-      "kimono_hint": "lightweight yukata in asagao or goldfish patterns for summer festival look"
-    },
-    "8": {
-      "name_ja": "葉月",
-      "name_en": "August",
-      "season": "peak summer",
-      "mood": "intense heat, nostalgia, lingering summer — cicadas, sea, Obon",
-      "motifs": {
-        "allowed": ["sunflowers (himawari)", "cicadas (semi)", "fireworks at Obon", "sea breeze", "summer mountains", "shaved ice (kakigori)", "morning glory"],
-        "forbidden": ["spring blossoms", "autumn leaves", "snow", "cold imagery"]
-      },
-      "events": ["Obon (ancestor return festival, Aug 13-16)", "summer fireworks festivals"],
-      "colors": ["sunflower yellow", "deep indigo", "brilliant white", "warm orange"],
-      "kimono_hint": "indigo yukata with bold summer motifs, or fine-woven ro kimono for evening festivals"
-    },
-    "9": {
-      "name_ja": "長月",
-      "name_en": "September",
-      "season": "early autumn",
-      "mood": "cooling wonder — harvest moon, silver grass, transition",
-      "motifs": {
-        "allowed": ["harvest moon (tsukimi)", "silver grass (susuki)", "moon rabbit", "chrysanthemum beginning", "cosmos flowers", "early autumn leaves", "rice harvest"],
-        "forbidden": ["summer fireworks", "cherry blossoms", "deep winter motifs"]
-      },
-      "events": ["Tsukimi (moon viewing)", "Autumnal equinox (Shūbun)", "Respect for the Aged Day"],
-      "colors": ["harvest gold", "silver", "deep indigo blue", "warm rust"],
-      "kimono_hint": "autumn-transitional kimono with susuki grass and moon motifs on deep blue or gold ground"
-    },
-    "10": {
-      "name_ja": "神無月",
-      "name_en": "October",
-      "season": "mid autumn",
-      "mood": "rich and contemplative — peak foliage approaching, crisp air",
-      "motifs": {
-        "allowed": ["chrysanthemum (kiku)", "autumn leaves beginning", "maple (momiji)", "harvest festivals", "persimmon (kaki)", "wild geese (kari)"],
-        "forbidden": ["cherry blossoms", "summer imagery", "snow"]
-      },
-      "events": ["Shichi-Go-San preparations", "autumn festivals (aki matsuri)", "chrysanthemum exhibitions"],
-      "colors": ["deep crimson", "amber gold", "forest green", "warm brown"],
-      "kimono_hint": "chrysanthemum or maple patterns on deep crimson or amber, lined kimono for cooler weather"
-    },
-    "11": {
-      "name_ja": "霜月",
-      "name_en": "November",
-      "season": "late autumn",
-      "mood": "vivid melancholy — peak foliage, growing cold, quiet beauty",
-      "motifs": {
-        "allowed": ["maple leaves (momiji) at peak", "fallen leaves", "first frost", "ginkgo yellow", "Shichi-Go-San children", "autumn temple gardens"],
-        "forbidden": ["cherry blossoms", "summer fireworks", "spring imagery"]
-      },
-      "events": ["Shichi-Go-San (Nov 15)", "Autumn koyo viewing"],
-      "colors": ["scarlet red", "golden yellow", "deep brown", "misty grey"],
-      "kimono_hint": "rich autumn weave with momiji patterns in scarlet and gold — most photogenic season for kimono"
-    },
-    "12": {
-      "name_ja": "師走",
-      "name_en": "December",
-      "season": "early winter",
-      "mood": "hushed and elegant — year-end reflection, first snow anticipation",
-      "motifs": {
-        "allowed": ["camellia (tsubaki)", "winter camellias in snow", "bare branches", "yuzu citrus", "year-end (toshi no se)", "first snow (hatsuyuki)"],
-        "forbidden": ["cherry blossoms", "summer fireworks", "autumn leaves (peaked)"]
-      },
-      "events": ["Winter solstice (Tōji, yuzu bath)", "Ōmisoka (New Year's Eve)"],
-      "colors": ["deep navy", "crimson", "ivory", "silver"],
-      "kimono_hint": "elegant lined kimono or haori in deep navy or black with camellia or snow motifs"
-    }
+  "_comment": "月単位ザックリの季節モチーフ表。外国人フォロワー向け英語ボット用。allow=使ってよいモチーフ, ban=季節外れ禁止, events=その月の主な和の行事(英語名併記), mood=投稿トーン, kimono_hint=SCENE_PROMPT用の着物柄ヒント。",
+  "1": {
+    "season_en": "Deep winter / New Year",
+    "allow": ["snow", "first sunrise (hatsuhinode)", "kotatsu", "plum buds", "camellia (tsubaki)", "kimono with fur collar"],
+    "ban": ["cherry blossoms", "autumn leaves", "fireflies", "summer festival"],
+    "events": ["New Year (Oshogatsu, Jan 1)", "Coming of Age Day (Seijin no Hi, 2nd Mon)"],
+    "mood": "quiet, fresh-start, cold air, prayerful",
+    "kimono_hint": "formal furisode or houmongi in red, white, or gold with pine-bamboo-plum (shochikubai) patterns"
+  },
+  "2": {
+    "season_en": "Late winter, plum season",
+    "allow": ["plum blossoms (ume)", "snow remnants", "camellia", "early spring light", "warm tea"],
+    "ban": ["cherry blossoms in full bloom", "autumn leaves", "summer"],
+    "events": ["Setsubun (Feb 3)", "Risshun / first day of spring"],
+    "mood": "anticipation, plum fragrance, thawing",
+    "kimono_hint": "camellia or plum blossom patterns on pale pink or ivory ground"
+  },
+  "3": {
+    "season_en": "Early spring, cherry blossom start",
+    "allow": ["cherry blossoms beginning to bloom", "plum", "warm breeze", "spring kimono", "peach blossoms"],
+    "ban": ["autumn leaves", "snow", "summer festival"],
+    "events": ["Hinamatsuri / Doll Festival (Mar 3)", "Vernal Equinox"],
+    "mood": "awakening, soft pink, gentle",
+    "kimono_hint": "hanami-style furisode with peach or early cherry blossoms, soft pastels"
+  },
+  "4": {
+    "season_en": "Full spring, peak sakura",
+    "allow": ["cherry blossoms in full bloom", "hanami picnic", "fresh green buds", "spring rain"],
+    "ban": ["autumn leaves", "snow", "fireflies"],
+    "events": ["Hanami season", "school/work new-year start"],
+    "mood": "celebratory, fleeting beauty (mono no aware), bright",
+    "kimono_hint": "sakura-patterned kimono in soft pinks or whites — the classic hanami look"
+  },
+  "5": {
+    "season_en": "Late spring / early summer (fresh green)",
+    "allow": ["fresh green leaves (shinryoku)", "wisteria (fuji)", "azalea", "carp streamers (koinobori)", "tea harvest"],
+    "ban": ["cherry blossoms", "autumn leaves", "snow"],
+    "events": ["Children's Day (May 5)", "Golden Week"],
+    "mood": "vivid green, refreshing, lively",
+    "kimono_hint": "iris or wisteria patterns in purple and green, informal hitoe (unlined) appropriate"
+  },
+  "6": {
+    "season_en": "Rainy season (tsuyu)",
+    "allow": ["hydrangea (ajisai)", "rain", "fireflies (hotaru)", "green maple (aomomiji)", "umbrella", "wet stone garden"],
+    "ban": ["cherry blossoms", "autumn leaves", "snow"],
+    "events": ["Nagoshi no Harae / summer purification (Jun 30)"],
+    "mood": "rain-soft, melancholic-beautiful, glistening, quiet",
+    "kimono_hint": "ajisai (hydrangea) patterns in blue-purple on linen or cotton fabric for the humid season"
+  },
+  "7": {
+    "season_en": "Midsummer, festival season begins",
+    "allow": ["summer festival (matsuri)", "fireworks (hanabi)", "yukata", "wind chime (furin)", "lotus", "shaved ice (kakigori)"],
+    "ban": ["cherry blossoms", "autumn leaves", "snow"],
+    "events": ["Tanabata / Star Festival (Jul 7)", "summer festivals"],
+    "mood": "festive, warm night, nostalgic, vibrant",
+    "kimono_hint": "lightweight yukata in asagao or goldfish patterns for summer festival look"
+  },
+  "8": {
+    "season_en": "Late summer, Obon",
+    "allow": ["fireworks", "yukata", "cicada", "sunflower", "lantern (toro nagashi)", "summer night"],
+    "ban": ["cherry blossoms", "autumn leaves", "snow"],
+    "events": ["Obon (mid-Aug)", "Bon Odori dance"],
+    "mood": "humid, ancestral, lantern-lit, bittersweet",
+    "kimono_hint": "indigo yukata with bold summer motifs, or fine-woven ro kimono for evening festivals"
+  },
+  "9": {
+    "season_en": "Early autumn",
+    "allow": ["full moon (tsukimi)", "susuki grass", "early autumn breeze", "red dragonfly", "cosmos flower"],
+    "ban": ["cherry blossoms", "snow", "summer festival"],
+    "events": ["Tsukimi / Moon Viewing", "Autumnal Equinox"],
+    "mood": "calm, transition, moonlit, reflective",
+    "kimono_hint": "autumn-transitional kimono with susuki grass and moon motifs on deep blue or gold ground"
+  },
+  "10": {
+    "season_en": "Autumn, leaves turning",
+    "allow": ["autumn leaves beginning (koyo)", "chrysanthemum", "persimmon", "harvest", "warm earthy tones"],
+    "ban": ["cherry blossoms", "snow", "fireflies"],
+    "events": ["autumn festivals", "chrysanthemum viewing"],
+    "mood": "warm, golden, harvest, cozy",
+    "kimono_hint": "chrysanthemum or maple patterns on deep crimson or amber, lined kimono for cooler weather"
+  },
+  "11": {
+    "season_en": "Peak autumn foliage",
+    "allow": ["autumn leaves in full color (momiji)", "ginkgo gold", "tea ceremony", "warm kimono", "hot spring with leaves"],
+    "ban": ["cherry blossoms", "summer festival", "fireflies"],
+    "events": ["Shichi-Go-San (Nov 15)", "peak koyo"],
+    "mood": "rich red-gold, contemplative, crisp",
+    "kimono_hint": "rich autumn weave with momiji patterns in scarlet and gold — most photogenic season for kimono"
+  },
+  "12": {
+    "season_en": "Early winter / year end",
+    "allow": ["first snow", "winter illumination", "year-end (toshikoshi)", "camellia", "warm sake", "hot spring steam"],
+    "ban": ["cherry blossoms", "autumn leaves at peak", "fireflies"],
+    "events": ["Year-end (Omisoka, Dec 31)", "winter solstice (Toji)"],
+    "mood": "cold, intimate, reflective, glowing-warm-indoors",
+    "kimono_hint": "elegant lined kimono or haori in deep navy or black with camellia or snow motifs"
   }
 }
