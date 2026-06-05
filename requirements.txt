@@ -1,5 +1,5 @@
-playwright>=1.44.0
 python-dotenv>=1.0.0
 schedule>=1.2.0
 google-genai>=1.0.0
 fal-client>=0.10.0
+tweepy>=4.14.0

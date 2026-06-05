@@ -1,7 +1,7 @@
 """
 generator.py
 ① 初回のみ: reference.png（凛/Rin のベース顔）を fal-ai/flux-realism で生成
-② 毎回    : Gemini がシーン（背景・表情・ポーズ）を生成
+② 毎回    : Gemini がシーン + バイリンガルツイートを生成
             → fal-ai/instant-character + reference.png で同一人物を維持した画像を生成
             → ダッシュボード DB に下書き投稿として直接保存
 """
@@ -12,6 +12,7 @@ import sys
 import time
 import base64
 import json
+import random
 import tempfile
 import urllib.request
 import urllib.parse
@@ -33,13 +34,12 @@ DASHBOARD_BASIC_USER = os.environ.get("DASHBOARD_BASIC_USER", "admin").strip()
 DASHBOARD_BASIC_PASS = os.environ.get("DASHBOARD_BASIC_PASS", "changeme").strip()
 DASHBOARD_URL        = os.environ.get("DASHBOARD_URL", "http://localhost:3001")
 
-# Internal API secret = same base64 token used for cookie auth
 INTERNAL_SECRET = base64.b64encode(
     f"{DASHBOARD_BASIC_USER}:{DASHBOARD_BASIC_PASS}".encode()
 ).decode()
 
 # ------------------------------------------------------------------ #
-# モデル設定（変更はここだけ）
+# モデル設定
 # ------------------------------------------------------------------ #
 FAL_MODEL_CHARACTER = "fal-ai/instant-character"
 FAL_MODEL_REFERENCE = "fal-ai/flux-realism"
@@ -59,36 +59,51 @@ REFERENCE_PROMPT = (
 )
 
 # ------------------------------------------------------------------ #
+# ハッシュタグプール（外国人向け）
+# ------------------------------------------------------------------ #
+HASHTAG_POOL = [
+    "#Japan", "#JapaneseCulture", "#Kimono", "#JapanTravel",
+    "#WabiSabi", "#Sakura", "#TraditionalJapan", "#JapaneseBeauty",
+    "#Washoku", "#Onsen", "#JapanLife", "#VisitJapan",
+    "#JapaneseFashion", "#Zen", "#KimonoStyle",
+]
+
+# ------------------------------------------------------------------ #
 # Gemini システムプロンプト
 # ------------------------------------------------------------------ #
-SYSTEM_PROMPT = """あなたは日本の伝統美とAIアートを発信するTwitterアカウント「凛（Rin）」のコンテンツジェネレーターです。
+SYSTEM_PROMPT = """You are the content generator for the Twitter account "凛（Rin）", a beautiful 20-year-old Japanese woman in seasonal kimono who warmly shares Japanese culture with international followers.
 
-【キャラクター：凛（Rin）】
-- 20歳の日本女性。四季折々の着物を纏い、日本の伝統美を体現する。
-- 凛とした美しさ、優しさ、品格を持つ。
-- ※キャラクターのビジュアルはリファレンス画像で固定済み。プロンプトに顔・年齢・人物描写は不要。
+【Character: 凛（Rin）】
+- Embodies traditional Japanese beauty and grace
+- Speaks warmly, elegantly, and personally — like a friend sharing a private moment
+- ※ Visual appearance is fixed by reference image. Do NOT describe face, age, or appearance.
 
-【SCENE_PROMPT 生成ルール（厳守）】
-英語で「シーン・背景・表情・ポーズ・光」のみを描写する。キャラクターの外見（顔・年齢・服）は書かない。
+【SCENE_PROMPT Rules】
+Write in English. Describe ONLY: kimono pattern/color, background/location, pose/action, expression, lighting.
 
-必ず含める要素：
-- 着物の柄・色（例: wearing a deep indigo kimono with golden chrysanthemum patterns）
-- 背景・場所（例: in a bamboo forest, beside a koi pond, at a traditional tea house, under cherry blossoms at dusk）
-- ポーズ・動作（例: holding a delicate teacup, arranging ikebana flowers, gazing at falling petals）
-- 表情（例: gentle smile, serene expression, soft gaze into the distance）
-- 光・雰囲気（例: soft morning light, golden hour glow, soft bokeh background）
+Required elements:
+- Kimono pattern & color (e.g., "wearing a soft pink kimono with wisteria patterns")
+- Setting (e.g., "in a bamboo forest at dawn", "beside a koi pond", "under cherry blossoms at dusk")
+- Pose/action (e.g., "holding a paper umbrella", "arranging ikebana flowers", "sipping matcha")
+- Expression (e.g., "gentle smile", "serene gaze into the distance")
+- Lighting (e.g., "soft morning light", "golden hour glow", "soft bokeh background")
 
-良い例: "wearing a deep indigo kimono with golden chrysanthemum patterns, standing in a misty bamboo forest at dawn, soft diffused light, holding a paper umbrella, serene expression"
+Good example: "wearing a deep indigo kimono with golden chrysanthemum patterns, standing in a misty bamboo forest at dawn, holding a paper umbrella, serene expression, soft diffused light"
 
-【ツイート文生成ルール】
-- 日本語50〜120文字。
-- 凛（Rin）の一人称で、その日の風景・心情・着物の描写を詩的に書く。
-- 末尾に必ず「#AI美女 #着物女子 #和装 #AIモデル #japanesekimono」を含める。
-- 絵文字1〜3個使用。余韻を残す文体。
+【TWEET Rules】
+Theme: Japanese kimono, seasons, washoku (traditional food), famous sights, tea ceremony, ikebana, or festivals.
+Tone: 凛 warmly addresses international followers, elegantly sharing a piece of Japan.
 
-【出力形式（厳守）】
-SCENE_PROMPT: {英語シーン描写（1行）}
-TWEET: {ツイート本文（日本語）}"""
+Write the tweet in EXACTLY this 3-line structure (no extra lines):
+Line 1 [English]: One poetic cultural observation or interesting fact (max 100 chars, 1-2 emoji)
+Line 2 [Romaji]: The same sentiment in romanized Japanese (max 70 chars)
+Line 3 [Japanese]: Japanese text (max 50 chars, 1 emoji)
+
+【Output Format (STRICT)】
+SCENE_PROMPT: {English scene description (1 line)}
+TWEET: {Line 1 English with emoji}
+{Line 2 Romaji}
+{Line 3 Japanese with emoji}"""
 
 
 # ------------------------------------------------------------------ #
@@ -121,10 +136,14 @@ def _generate_reference_image() -> None:
 
 
 def _get_reference_url() -> str:
+    env_url = os.environ.get("REFERENCE_IMAGE_URL", "").strip()
+    if env_url:
+        print(f"[キャッシュ] 環境変数からリファレンスURL取得: {env_url[:60]}...")
+        return env_url
     if REFERENCE_URL_CACHE.exists():
         url = REFERENCE_URL_CACHE.read_text(encoding="utf-8").strip()
         if url:
-            print(f"[キャッシュ] リファレンスURL: {url[:60]}...")
+            print(f"[キャッシュ] ファイルからリファレンスURL取得: {url[:60]}...")
             return url
     print("[アップロード] reference.png を fal.ai にアップロード中...")
     url = fal_client.upload_file(str(REFERENCE_IMAGE_PATH))
@@ -145,14 +164,14 @@ def ensure_reference() -> str:
 # ------------------------------------------------------------------ #
 
 def generate_content(theme: str = "") -> tuple[str, str]:
-    """Returns (scene_prompt, tweet_text)"""
+    """Returns (scene_prompt, tweet_text_with_hashtags)"""
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY が未設定です。")
 
     client = genai.Client(api_key=GEMINI_API_KEY)
     user_message = (
-        f"今日のテーマ：{theme}" if theme
-        else "今日の季節感や情景を自由に想像して、凛（Rin）らしい投稿を1件生成してください。"
+        f"Today's theme: {theme}" if theme
+        else "Create a post for 凛（Rin）inspired by Japanese seasons, kimono culture, or traditional customs."
     )
 
     for attempt in range(1, 4):
@@ -178,7 +197,14 @@ def generate_content(theme: str = "") -> tuple[str, str]:
     if not scene_match or not tweet_match:
         raise ValueError(f"Gemini の出力が期待形式ではありません:\n{text}")
 
-    return scene_match.group(1).strip(), tweet_match.group(1).strip()
+    scene_prompt = scene_match.group(1).strip()
+    tweet_body   = tweet_match.group(1).strip()
+
+    # ランダムハッシュタグ 4個付与
+    hashtags = " ".join(random.sample(HASHTAG_POOL, 4))
+    tweet_text = f"{tweet_body}\n\n{hashtags}"
+
+    return scene_prompt, tweet_text
 
 
 # ------------------------------------------------------------------ #
@@ -225,7 +251,7 @@ def create_post(tweet_text: str, scene_prompt: str) -> str:
         "tweetText": tweet_text,
         "imagePrompt": scene_prompt,
         "slot": "evening",
-        "theme": "hana-daily",
+        "theme": "rin-daily",
         "themeName": "Daily Post",
     }).encode()
     data = _api_request("/api/posts/new", payload, "application/json")
@@ -263,7 +289,7 @@ def upload_image_to_dashboard(post_id: str, image_url: str) -> None:
 
 
 # ------------------------------------------------------------------ #
-# メイン処理
+# メイン処理（ダッシュボード下書き保存のみ）
 # ------------------------------------------------------------------ #
 
 def run(theme: str = "", count: int = 1) -> None:
