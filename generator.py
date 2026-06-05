@@ -102,12 +102,13 @@ Line 1 [English]: MUST use first person "I" — describe Rin's own emotion, acti
 Line 2 [Romaji]: The same sentiment in romanized Japanese (max 70 chars)
 Line 3 [Japanese]: Japanese text (max 50 chars, 1 emoji)
 
-【Output Format (STRICT)】
+【Output Format (STRICT — follow exactly, no additions)】
 SCENE_PROMPT: {English scene description (1 line)}
-TWEET: {Line 1 English — must start with or include "I", describing Rin's feeling or action}
+TWEET: {Line 1 English — must include "I", describing Rin's feeling or action, 1-2 emoji}
 {Line 2 Romaji}
-{Line 3 Japanese with emoji}
-{exactly 4 hashtags on this single line, no blank line before it}"""
+{Line 3 Japanese with 1 emoji}
+
+Do NOT add hashtags. Do NOT add any extra lines. Output ends after Line 3."""
 
 
 # ------------------------------------------------------------------ #
@@ -207,7 +208,11 @@ def generate_content(theme: str = "") -> tuple[str, str]:
         raise ValueError(f"Gemini の出力が期待形式ではありません:\n{text}")
 
     scene_prompt = scene_match.group(1).strip()
-    tweet_body   = tweet_match.group(1).strip()
+
+    # Gemini がハッシュタグを出力した場合は除去（コード側で付与するため）
+    raw_body = tweet_match.group(1).strip()
+    clean_lines = [l for l in raw_body.splitlines() if not l.strip().startswith("#")]
+    tweet_body = "\n".join(clean_lines).strip()
 
     # ハッシュタグ厳密に4個・空行なし・1行で付与
     hashtags = " ".join(random.sample(HASHTAG_POOL, 4))
