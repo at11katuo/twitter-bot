@@ -26,6 +26,9 @@ from google import genai
 from google.genai import types
 import fal_client
 
+from research.context_builder import build_full_context
+from research.trend_collector import get_trend_context
+
 load_dotenv()
 
 GEMINI_API_KEY       = os.environ.get("GEMINI_API_KEY", "")
@@ -168,10 +171,15 @@ def generate_content(theme: str = "") -> tuple[str, str]:
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY が未設定です。")
 
+    # 季節コンテキスト + キャラクター定義を注入
+    seasonal_ctx = build_full_context()
+    trend_ctx    = get_trend_context()  # OPENROUTER_API_KEY 未設定時は空文字
+    enriched_system = f"{seasonal_ctx}\n\n{trend_ctx}\n\n{SYSTEM_PROMPT}".strip()
+
     client = genai.Client(api_key=GEMINI_API_KEY)
     user_message = (
         f"Today's theme: {theme}" if theme
-        else "Create a post for 凛（Rin）inspired by Japanese seasons, kimono culture, or traditional customs."
+        else "Create a post for 凛（Rin）that feels true to this month's season and mood."
     )
 
     for attempt in range(1, 4):
@@ -179,7 +187,7 @@ def generate_content(theme: str = "") -> tuple[str, str]:
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=user_message,
-                config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
+                config=types.GenerateContentConfig(system_instruction=enriched_system),
             )
             text = response.text.strip()
             break
