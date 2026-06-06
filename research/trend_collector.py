@@ -18,6 +18,8 @@ import datetime
 import urllib.request
 import urllib.error
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()
 
 from research.context_builder import get_season_data
 
@@ -96,9 +98,9 @@ def _summarize_openrouter(snippets: list[str], season: dict) -> str:
     snippet_text = "\n\n".join(snippets[:5]) if snippets else "(no web data available)"
     prompt = f"""You are a cultural context assistant for a Japanese kimono beauty Twitter account.
 
-Current season: {season['name_en']} ({season['name_ja']}) — {season['season']}
+Current season: {season['season_en']}
 Seasonal mood: {season['mood']}
-Key motifs: {', '.join(season['motifs']['allowed'][:5])}
+Key motifs: {', '.join(season['allow'][:5])}
 Events: {', '.join(season['events'])}
 
 Web search snippets (may be empty):
@@ -156,13 +158,13 @@ def get_trend_context(month: int | None = None, force_refresh: bool = False) -> 
         return ""
 
     season = get_season_data(month)
-    query  = f"Japan {season['name_en']} {season['season']} culture kimono tradition 2024"
+    query  = f"Japan {season['season_en']} culture kimono tradition"
     print(f"[trend] Web検索: {query}")
     snippets = _search_tavily(query)
 
     try:
         summary = _summarize_openrouter(snippets, season)
-        context = f"\n=== CULTURAL TREND NOTES ({season['name_en']}) ===\n{summary}\n==="
+        context = f"\n=== CULTURAL TREND NOTES ({season['season_en']}) ===\n{summary}\n==="
         _save_cache(month, {"context": context, "month": month})
         print(f"[trend] 要約完了 ({len(summary)}文字)")
         return context
