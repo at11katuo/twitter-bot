@@ -29,7 +29,7 @@ _CACHE_DIR.mkdir(exist_ok=True)
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 TAVILY_API_KEY     = os.environ.get("TAVILY_API_KEY", "")
-OPENROUTER_MODEL   = os.environ.get("OPENROUTER_MODEL", "google/gemini-flash-1.5")
+OPENROUTER_MODEL   = os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 
 
 # ------------------------------------------------------------------ #
