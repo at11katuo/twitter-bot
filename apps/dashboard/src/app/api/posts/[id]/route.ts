@@ -10,12 +10,20 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const body = await req.json()
-  const data: { tweetText?: string; status?: string } = {}
-  if (typeof body.tweetText === 'string') data.tweetText = body.tweetText
-  if (typeof body.status   === 'string') data.status    = body.status
-  const post = await prisma.post.update({ where: { id: params.id }, data })
-  return NextResponse.json(post)
+  try {
+    const body = await req.json()
+    const data: { tweetText?: string; status?: string } = {}
+    if (typeof body.tweetText === 'string') data.tweetText = body.tweetText
+    if (typeof body.status   === 'string') data.status    = body.status
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: 'no fields to update' }, { status: 400 })
+    }
+    const post = await prisma.post.update({ where: { id: params.id }, data })
+    return NextResponse.json(post)
+  } catch (e) {
+    console.error('[PATCH /api/posts/:id]', e)
+    return NextResponse.json({ error: 'update failed' }, { status: 500 })
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {

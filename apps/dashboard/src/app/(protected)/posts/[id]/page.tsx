@@ -98,12 +98,23 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
 
   // ── テキスト保存 ─────────────────────────────────────────────────
   const handleSaveText = async () => {
-    const res = await fetch(`/api/posts/${params.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tweetText }),
-    })
-    if (res.ok) setMessage('💾 テキストを保存しました')
+    setMessage('')
+    try {
+      const res = await fetch(`/api/posts/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tweetText }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setPost((p) => p ? { ...p, tweetText: updated.tweetText } : p)
+        setMessage('💾 テキストを保存しました')
+      } else {
+        setMessage('❌ 保存に失敗しました')
+      }
+    } catch {
+      setMessage('❌ 保存に失敗しました（通信エラー）')
+    }
   }
 
   // ── 本文コピー ───────────────────────────────────────────────────

@@ -1,9 +1,7 @@
 import { prisma } from '@hana/db'
-import GenerateActions from './_components/GenerateActions'
 import GenerateRin from './_components/GenerateRin'
 import PostCardClient from './_components/PostCardClient'
 import TrashSection from './_components/TrashSection'
-import { generateContentAction, generateWeekAction } from '@/server/actions/post'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,12 +46,6 @@ export default async function HomePage() {
     <div className="space-y-4">
       {/* 凛 生成パネル */}
       <GenerateRin />
-
-      {/* Hana 生成ボタン（英語ツイート用） */}
-      <GenerateActions
-        generateToday={generateContentAction}
-        generateWeek={generateWeekAction}
-      />
 
       {/* 投稿一覧 */}
       {sortedDates.length === 0 ? (
