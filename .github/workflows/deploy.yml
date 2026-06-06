@@ -42,6 +42,7 @@ jobs:
             echo "DASHBOARD_BASIC_PASS=${{ secrets.HANA_BASIC_PASS }}" >> .env
             echo "FAL_KEY=${{ secrets.FAL_KEY }}" >> .env
             echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+            echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> .env
             if [ -f reference_url.txt ]; then
               echo "REFERENCE_IMAGE_URL=$(tr -d '[:space:]' < reference_url.txt)" >> .env
             fi
