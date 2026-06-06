@@ -85,8 +85,8 @@ jobs:
 
             echo "==> install Python dependencies"
             cd ${{ secrets.HANA_DEPLOY_PATH }}
-            python3 -m venv venv 2>/dev/null || true
-            ./venv/bin/pip install -q -r requirements.txt
+            python3 -m venv venv_deployer 2>/dev/null || true
+            ./venv_deployer/bin/pip install -q -r requirements.txt
 
             echo "==> setup cron jobs"
             mkdir -p /home/deployer/twitter-bot/logs
@@ -95,8 +95,8 @@ jobs:
                 | grep -v 'api/cleanup' \
                 | grep -v 'bot.py' \
                 || true
-              echo "0 8  * * * cd ${{ secrets.HANA_DEPLOY_PATH }} && ./venv/bin/python bot.py morning >> /home/deployer/twitter-bot/logs/bot.log 2>&1"
-              echo "0 22 * * * cd ${{ secrets.HANA_DEPLOY_PATH }} && ./venv/bin/python bot.py evening >> /home/deployer/twitter-bot/logs/bot.log 2>&1"
+              echo "0 8  * * * cd ${{ secrets.HANA_DEPLOY_PATH }} && ./venv_deployer/bin/python bot.py morning >> /home/deployer/twitter-bot/logs/bot.log 2>&1"
+              echo "0 22 * * * cd ${{ secrets.HANA_DEPLOY_PATH }} && ./venv_deployer/bin/python bot.py evening >> /home/deployer/twitter-bot/logs/bot.log 2>&1"
               echo "0 3  * * * curl -s -X POST http://localhost:3001/api/cleanup >> /home/deployer/twitter-bot/logs/cleanup.log 2>&1"
             ) | crontab -
 
