@@ -213,7 +213,7 @@ export async function POST() {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: fullSystemPrompt }] },
         contents: [{ role: 'user', parts: [{ text: 'Generate one post for Rin based on the current season.' }] }],
-        generationConfig: { maxOutputTokens: 1000 },
+        generationConfig: { maxOutputTokens: 8192 },
       }),
     }
   )
@@ -239,7 +239,12 @@ export async function POST() {
     .join('')
     .trim()
 
-  console.log('[generate/rin] finishReason=%s rawText=%j', geminiData.candidates?.[0]?.finishReason, rawText.slice(0, 200))
+  const finishReason = geminiData.candidates?.[0]?.finishReason
+  console.log('[generate/rin] finishReason=%s rawLen=%d rawText=%j', finishReason, rawText.length, rawText.slice(0, 300))
+  if (finishReason === 'MAX_TOKENS') {
+    console.error('[generate/rin] output truncated by MAX_TOKENS — increase maxOutputTokens')
+    return NextResponse.json({ error: 'AI output truncated (MAX_TOKENS)', raw: rawText }, { status: 500 })
+  }
 
   // マークダウンのコードブロックを除去
   const cleanText = rawText
