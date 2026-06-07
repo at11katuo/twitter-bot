@@ -205,7 +205,6 @@ export async function POST() {
     : SYSTEM_PROMPT
 
   // ② Gemini 2.5 Flash でシーン＋ツイート文生成
-  // thinkingBudget: 0 で思考トークンを無効化（parts[0] が思考パーツになるのを防ぐ）
   const geminiRes = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
     {
@@ -214,10 +213,7 @@ export async function POST() {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: fullSystemPrompt }] },
         contents: [{ role: 'user', parts: [{ text: 'Generate one post for Rin based on the current season.' }] }],
-        generationConfig: {
-          maxOutputTokens: 1000,
-          thinkingConfig: { thinkingBudget: 0 },
-        },
+        generationConfig: { maxOutputTokens: 1000 },
       }),
     }
   )
