@@ -205,6 +205,7 @@ export async function POST() {
     : SYSTEM_PROMPT
 
   // ② Gemini 2.5 Flash でシーン＋ツイート文生成
+  // thinkingBudget: 0 で思考トークンを無効化（parts[0] が思考パーツになるのを防ぐ）
   const geminiRes = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
     {
@@ -213,27 +214,50 @@ export async function POST() {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: fullSystemPrompt }] },
         contents: [{ role: 'user', parts: [{ text: 'Generate one post for Rin based on the current season.' }] }],
-        generationConfig: { maxOutputTokens: 500 },
+        generationConfig: {
+          maxOutputTokens: 1000,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     }
   )
 
   if (!geminiRes.ok) {
     const errBody = await geminiRes.text()
+    console.error('[generate/rin] Gemini API error:', errBody)
     return NextResponse.json({ error: 'Gemini API error', detail: errBody }, { status: 500 })
   }
 
   const geminiData = await geminiRes.json() as {
-    candidates: Array<{ content: { parts: Array<{ text: string }> } }>
+    candidates: Array<{
+      content: { parts: Array<{ text?: string; thought?: boolean }> }
+      finishReason?: string
+    }>
   }
-  const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
 
-  // ③ 出力パース
-  const sceneMatch = rawText.match(/SCENE_PROMPT:\s*(.+)/)
-  const tweetMatch = rawText.match(/TWEET:\s*([\s\S]+)/)
+  // 思考パーツ（thought: true）を除外し、残りのテキストを結合
+  const parts = geminiData.candidates?.[0]?.content?.parts ?? []
+  const rawText = parts
+    .filter((p) => !p.thought && typeof p.text === 'string')
+    .map((p) => p.text!)
+    .join('')
+    .trim()
+
+  console.log('[generate/rin] finishReason=%s rawText=%j', geminiData.candidates?.[0]?.finishReason, rawText.slice(0, 200))
+
+  // マークダウンのコードブロックを除去
+  const cleanText = rawText
+    .replace(/^```[^\n]*\n?/m, '')
+    .replace(/\n?```\s*$/m, '')
+    .trim()
+
+  // ③ 出力パース（複数行の SCENE_PROMPT も許容するため .+ を [^\n]+ に）
+  const sceneMatch = cleanText.match(/SCENE_PROMPT:\s*([^\n]+)/)
+  const tweetMatch = cleanText.match(/TWEET:\s*([\s\S]+)/)
 
   if (!sceneMatch || !tweetMatch) {
-    return NextResponse.json({ error: 'AI output format error', raw: rawText }, { status: 500 })
+    console.error('[generate/rin] parse failed. cleanText=%j', cleanText)
+    return NextResponse.json({ error: 'AI output format error', raw: cleanText }, { status: 500 })
   }
 
   const scenePrompt = sceneMatch[1].trim()
