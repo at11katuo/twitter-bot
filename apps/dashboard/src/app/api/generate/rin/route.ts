@@ -204,16 +204,18 @@ export async function POST() {
     ? `${seasonalContext}\n\n${SYSTEM_PROMPT}`
     : SYSTEM_PROMPT
 
-  // ② Gemini 2.5 Flash でシーン＋ツイート文生成
+  // ② Gemini 2.0 Flash でシーン＋ツイート文生成
+  // gemini-2.5-flash はプレビュー版で thinking tokens の扱いが不安定なため
+  // GA 安定版の gemini-2.0-flash を使用（thinking なし、高速）
   const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: fullSystemPrompt }] },
         contents: [{ role: 'user', parts: [{ text: 'Generate one post for Rin based on the current season.' }] }],
-        generationConfig: { maxOutputTokens: 8192 },
+        generationConfig: { maxOutputTokens: 2048 },
       }),
     }
   )
