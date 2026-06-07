@@ -1,6 +1,8 @@
 import { prisma } from '@hana/db'
 import { NextRequest, NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 const NO_CACHE = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
