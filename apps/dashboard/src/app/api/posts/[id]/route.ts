@@ -8,7 +8,7 @@ const NO_CACHE = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const post = await prisma.post.findUnique({ where: { id: params.id } })
   if (!post) return NextResponse.json({ error: 'not found' }, { status: 404, headers: NO_CACHE })
-  console.log('[GET /api/posts/:id] id=%s tweetText=%j', params.id, post.tweetText?.slice(0, 40))
+  console.log('[GET /api/posts/:id] id=%s len=%d text=%j', params.id, post.tweetText?.length, post.tweetText?.slice(0, 80))
   return NextResponse.json(post, { headers: NO_CACHE })
 }
 
@@ -28,7 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     const post = await prisma.post.update({ where: { id }, data })
-    console.log('[PATCH /api/posts/:id] updated ok, tweetText=%j', post.tweetText?.slice(0, 40))
+    console.log('[PATCH /api/posts/:id] updated ok, len=%d text=%j', post.tweetText?.length, post.tweetText?.slice(0, 80))
     return NextResponse.json(post, { headers: NO_CACHE })
   } catch (e) {
     console.error('[PATCH /api/posts/:id] id=%s error=%s', id, String(e))
