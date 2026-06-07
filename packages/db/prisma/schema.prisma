@@ -7,6 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model LatestTrend {
+  id        String   @id @default(cuid())
+  month     Int
+  date      String   // YYYY-MM-DD (daily cache key)
+  context   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([month, date])
+}
+
 // 1件 = 1投稿スロット（朝/昼/夜）
 model Post {
   id          String    @id @default(cuid())

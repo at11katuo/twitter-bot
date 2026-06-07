@@ -7,6 +7,8 @@ posted/
 __pycache__/
 *.py[cod]
 data/
+packages/data/
+research/.cache/
 .DS_Store
 dist/
 reference.png

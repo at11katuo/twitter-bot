@@ -3,9 +3,13 @@ trend_collector.py
 今月の季節トレンドを Web 検索 + OpenRouter LLM で要約し、
 generator.py のプロンプトに注入できる文字列を返す。
 
+キャッシュ先: DATABASE_URL が設定されていれば hana.db（LatestTrend テーブル）、
+未設定またはDBアクセス不可の場合はファイルキャッシュにフォールバック。
+
 必要な環境変数:
   OPENROUTER_API_KEY  (必須)
   TAVILY_API_KEY      (任意 — 未設定時は季節データのみにフォールバック)
+  DATABASE_URL        (任意 — 未設定時はファイルキャッシュ)
 
 使用例:
   from research.trend_collector import get_trend_context
@@ -14,6 +18,7 @@ generator.py のプロンプトに注入できる文字列を返す。
 
 import os
 import json
+import sqlite3
 import datetime
 import urllib.request
 import urllib.error
@@ -23,8 +28,8 @@ load_dotenv()
 
 from research.context_builder import get_season_data
 
-_HERE        = Path(__file__).parent
-_CACHE_DIR   = _HERE / ".cache"
+_HERE      = Path(__file__).parent
+_CACHE_DIR = _HERE / ".cache"
 _CACHE_DIR.mkdir(exist_ok=True)
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
@@ -33,7 +38,59 @@ OPENROUTER_MODEL   = os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 
 
 # ------------------------------------------------------------------ #
-# キャッシュ（1日1回で十分）
+# DB ユーティリティ
+# ------------------------------------------------------------------ #
+
+def _get_db_path() -> str | None:
+    """DATABASE_URL から SQLite ファイルパスを返す。設定なし/解析不能時は None。"""
+    url = os.environ.get("DATABASE_URL", "").strip()
+    if not url:
+        return None
+    path = url[len("file:"):] if url.startswith("file:") else url
+    return path if path else None
+
+
+def _load_cache_db(month: int, date: str) -> dict | None:
+    db_path = _get_db_path()
+    if not db_path or not Path(db_path).exists():
+        return None
+    try:
+        with sqlite3.connect(db_path) as conn:
+            row = conn.execute(
+                'SELECT context FROM "LatestTrend" WHERE month = ? AND date = ?',
+                (month, date),
+            ).fetchone()
+            return {"context": row[0]} if row else None
+    except Exception as e:
+        print(f"[trend] DB読み込み失敗: {e}")
+        return None
+
+
+def _save_cache_db(month: int, date: str, data: dict) -> bool:
+    db_path = _get_db_path()
+    if not db_path or not Path(db_path).exists():
+        return False
+    try:
+        import random, string
+        now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        cuid = "c" + "".join(random.choices(string.ascii_lowercase + string.digits, k=24))
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                """INSERT INTO "LatestTrend" (id, month, date, context, createdAt, updatedAt)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(month, date) DO UPDATE SET
+                     context   = excluded.context,
+                     updatedAt = excluded.updatedAt""",
+                (cuid, month, date, data["context"], now, now),
+            )
+        return True
+    except Exception as e:
+        print(f"[trend] DB保存失敗: {e}")
+        return False
+
+
+# ------------------------------------------------------------------ #
+# ファイルキャッシュ（DB 不使用時のフォールバック）
 # ------------------------------------------------------------------ #
 
 def _cache_path(month: int) -> Path:
@@ -42,7 +99,7 @@ def _cache_path(month: int) -> Path:
     return _CACHE_DIR / f"trend_{date}_m{month:02d}.json"
 
 
-def _load_cache(month: int) -> dict | None:
+def _load_cache_file(month: int) -> dict | None:
     path = _cache_path(month)
     if path.exists():
         with open(path, encoding="utf-8") as f:
@@ -50,9 +107,33 @@ def _load_cache(month: int) -> dict | None:
     return None
 
 
-def _save_cache(month: int, data: dict) -> None:
+def _save_cache_file(month: int, data: dict) -> None:
     with open(_cache_path(month), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+# ------------------------------------------------------------------ #
+# キャッシュ統合インターフェース（DB 優先、ファイルフォールバック）
+# ------------------------------------------------------------------ #
+
+def _load_cache(month: int) -> dict | None:
+    jst  = datetime.timezone(datetime.timedelta(hours=9))
+    date = datetime.datetime.now(jst).strftime("%Y-%m-%d")
+    result = _load_cache_db(month, date)
+    if result is not None:
+        return result
+    return _load_cache_file(month)
+
+
+def _save_cache(month: int, data: dict) -> None:
+    jst  = datetime.timezone(datetime.timedelta(hours=9))
+    date = datetime.datetime.now(jst).strftime("%Y-%m-%d")
+    saved_db = _save_cache_db(month, date, data)
+    if saved_db:
+        print("[trend] DBにキャッシュ保存")
+    else:
+        _save_cache_file(month, data)
+        print("[trend] ファイルにキャッシュ保存（DBフォールバック）")
 
 
 # ------------------------------------------------------------------ #
@@ -140,8 +221,8 @@ Keep it factual and brief. No hashtags. No preamble. Just the bullet points."""
 def get_trend_context(month: int | None = None, force_refresh: bool = False) -> str:
     """
     今月の季節トレンドコンテキストを返す。
-    キャッシュがあれば再利用（1日1回の更新で十分）。
-    OpenRouter 未設定時は空文字列を返す（フォールバック）。
+    キャッシュがあれば再利用（DB 優先、ファイルフォールバック）。
+    OpenRouter 未設定時は空文字列を返す。
     """
     if month is None:
         jst = datetime.timezone(datetime.timedelta(hours=9))
@@ -150,15 +231,17 @@ def get_trend_context(month: int | None = None, force_refresh: bool = False) -> 
     if not force_refresh:
         cached = _load_cache(month)
         if cached:
-            print(f"[trend] キャッシュ使用 (month={month})")
+            db_path = _get_db_path()
+            src = "DB" if (db_path and Path(db_path).exists()) else "ファイル"
+            print(f"[trend] キャッシュ使用 ({src}, month={month})")
             return cached.get("context", "")
 
     if not OPENROUTER_API_KEY:
         print("[trend] OPENROUTER_API_KEY 未設定 — トレンドコンテキストをスキップ")
         return ""
 
-    season = get_season_data(month)
-    query  = f"Japan {season['season_en']} culture kimono tradition"
+    season   = get_season_data(month)
+    query    = f"Japan {season['season_en']} culture kimono tradition"
     print(f"[trend] Web検索: {query}")
     snippets = _search_tavily(query)
 

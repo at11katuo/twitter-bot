@@ -48,6 +48,25 @@ services:
         condition: service_completed_successfully
     networks: [internal]
 
+  research-worker:
+    build:
+      context: .
+      dockerfile: docker/research-worker.Dockerfile
+    env_file: .env
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-deepseek/deepseek-chat}
+      - DATABASE_URL=file:/app/data/hana.db
+      - TZ=Asia/Tokyo
+    volumes:
+      - db_data:/app/data
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal]
+
 volumes:
   db_data:
 

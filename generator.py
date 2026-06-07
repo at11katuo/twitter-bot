@@ -26,8 +26,12 @@ from google import genai
 from google.genai import types
 import fal_client
 
-from research.context_builder import build_full_context
-from research.trend_collector import get_trend_context
+try:
+    from research.context_builder import build_full_context
+    from research.trend_collector import get_trend_context
+except ImportError:
+    def build_full_context(**_): return ""
+    def get_trend_context(): return ""
 
 load_dotenv()
 
