@@ -38,7 +38,7 @@ export default function PostDetailPage({ params }: { params: { id: string } }) {
   const [regenerating, setRegenerating] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/posts/${params.id}`)
+    fetch(`/api/posts/${params.id}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((data: PostDetail) => {
         setPost(data)
