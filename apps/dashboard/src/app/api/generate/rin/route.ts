@@ -1,77 +1,267 @@
 import { prisma } from '@hana/db'
 import { NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { fal } from '@fal-ai/client'
 import fs from 'fs'
 import path from 'path'
 
-const SYSTEM_PROMPT = `あなたは日本の伝統美とAIアートを発信するTwitterアカウント「凛（Rin）」のコンテンツジェネレーターです。
+// ── 季節カレンダー（season_calendar.json の内容を定数として埋め込み） ──────────
+interface SeasonEntry {
+  season_en: string
+  allow: string[]
+  ban: string[]
+  events: string[]
+  mood: string
+  kimono_hint: string
+}
 
-【キャラクター：凛（Rin）】
-- 20歳の日本女性。四季折々の着物を纏い、日本の伝統美を体現する。
-- ※キャラクターのビジュアルはリファレンス画像で固定済み。プロンプトに顔・年齢・人物描写は不要。
+const SEASON_CALENDAR: Record<string, SeasonEntry> = {
+  "1": {
+    "season_en": "Deep winter / New Year",
+    "allow": ["snow", "first sunrise (hatsuhinode)", "kotatsu", "plum buds", "camellia (tsubaki)", "kimono with fur collar"],
+    "ban": ["cherry blossoms", "autumn leaves", "fireflies", "summer festival"],
+    "events": ["New Year (Oshogatsu, Jan 1)", "Coming of Age Day (Seijin no Hi, 2nd Mon)"],
+    "mood": "quiet, fresh-start, cold air, prayerful",
+    "kimono_hint": "formal furisode or houmongi in red, white, or gold with pine-bamboo-plum (shochikubai) patterns"
+  },
+  "2": {
+    "season_en": "Late winter, plum season",
+    "allow": ["plum blossoms (ume)", "snow remnants", "camellia", "early spring light", "warm tea"],
+    "ban": ["cherry blossoms in full bloom", "autumn leaves", "summer"],
+    "events": ["Setsubun (Feb 3)", "Risshun / first day of spring"],
+    "mood": "anticipation, plum fragrance, thawing",
+    "kimono_hint": "camellia or plum blossom patterns on pale pink or ivory ground"
+  },
+  "3": {
+    "season_en": "Early spring, cherry blossom start",
+    "allow": ["cherry blossoms beginning to bloom", "plum", "warm breeze", "spring kimono", "peach blossoms"],
+    "ban": ["autumn leaves", "snow", "summer festival"],
+    "events": ["Hinamatsuri / Doll Festival (Mar 3)", "Vernal Equinox"],
+    "mood": "awakening, soft pink, gentle",
+    "kimono_hint": "hanami-style furisode with peach or early cherry blossoms, soft pastels"
+  },
+  "4": {
+    "season_en": "Full spring, peak sakura",
+    "allow": ["cherry blossoms in full bloom", "hanami picnic", "fresh green buds", "spring rain"],
+    "ban": ["autumn leaves", "snow", "fireflies"],
+    "events": ["Hanami season", "school/work new-year start"],
+    "mood": "celebratory, fleeting beauty (mono no aware), bright",
+    "kimono_hint": "sakura-patterned kimono in soft pinks or whites — the classic hanami look"
+  },
+  "5": {
+    "season_en": "Late spring / early summer (fresh green)",
+    "allow": ["fresh green leaves (shinryoku)", "wisteria (fuji)", "azalea", "carp streamers (koinobori)", "tea harvest"],
+    "ban": ["cherry blossoms", "autumn leaves", "snow"],
+    "events": ["Children's Day (May 5)", "Golden Week"],
+    "mood": "vivid green, refreshing, lively",
+    "kimono_hint": "iris or wisteria patterns in purple and green, informal hitoe (unlined) appropriate"
+  },
+  "6": {
+    "season_en": "Rainy season (tsuyu)",
+    "allow": ["hydrangea (ajisai)", "rain", "fireflies (hotaru)", "green maple (aomomiji)", "umbrella", "wet stone garden"],
+    "ban": ["cherry blossoms", "autumn leaves", "snow"],
+    "events": ["Nagoshi no Harae / summer purification (Jun 30)"],
+    "mood": "rain-soft, melancholic-beautiful, glistening, quiet",
+    "kimono_hint": "ajisai (hydrangea) patterns in blue-purple on linen or cotton fabric for the humid season"
+  },
+  "7": {
+    "season_en": "Midsummer, festival season begins",
+    "allow": ["summer festival (matsuri)", "fireworks (hanabi)", "yukata", "wind chime (furin)", "lotus", "shaved ice (kakigori)"],
+    "ban": ["cherry blossoms", "autumn leaves", "snow"],
+    "events": ["Tanabata / Star Festival (Jul 7)", "summer festivals"],
+    "mood": "festive, warm night, nostalgic, vibrant",
+    "kimono_hint": "lightweight yukata in asagao or goldfish patterns for summer festival look"
+  },
+  "8": {
+    "season_en": "Late summer, Obon",
+    "allow": ["fireworks", "yukata", "cicada", "sunflower", "lantern (toro nagashi)", "summer night"],
+    "ban": ["cherry blossoms", "autumn leaves", "snow"],
+    "events": ["Obon (mid-Aug)", "Bon Odori dance"],
+    "mood": "humid, ancestral, lantern-lit, bittersweet",
+    "kimono_hint": "indigo yukata with bold summer motifs, or fine-woven ro kimono for evening festivals"
+  },
+  "9": {
+    "season_en": "Early autumn",
+    "allow": ["full moon (tsukimi)", "susuki grass", "early autumn breeze", "red dragonfly", "cosmos flower"],
+    "ban": ["cherry blossoms", "snow", "summer festival"],
+    "events": ["Tsukimi / Moon Viewing", "Autumnal Equinox"],
+    "mood": "calm, transition, moonlit, reflective",
+    "kimono_hint": "autumn-transitional kimono with susuki grass and moon motifs on deep blue or gold ground"
+  },
+  "10": {
+    "season_en": "Autumn, leaves turning",
+    "allow": ["autumn leaves beginning (koyo)", "chrysanthemum", "persimmon", "harvest", "warm earthy tones"],
+    "ban": ["cherry blossoms", "snow", "fireflies"],
+    "events": ["autumn festivals", "chrysanthemum viewing"],
+    "mood": "warm, golden, harvest, cozy",
+    "kimono_hint": "chrysanthemum or maple patterns on deep crimson or amber, lined kimono for cooler weather"
+  },
+  "11": {
+    "season_en": "Peak autumn foliage",
+    "allow": ["autumn leaves in full color (momiji)", "ginkgo gold", "tea ceremony", "warm kimono", "hot spring with leaves"],
+    "ban": ["cherry blossoms", "summer festival", "fireflies"],
+    "events": ["Shichi-Go-San (Nov 15)", "peak koyo"],
+    "mood": "rich red-gold, contemplative, crisp",
+    "kimono_hint": "rich autumn weave with momiji patterns in scarlet and gold — most photogenic season for kimono"
+  },
+  "12": {
+    "season_en": "Early winter / year end",
+    "allow": ["first snow", "winter illumination", "year-end (toshikoshi)", "camellia", "warm sake", "hot spring steam"],
+    "ban": ["cherry blossoms", "autumn leaves at peak", "fireflies"],
+    "events": ["Year-end (Omisoka, Dec 31)", "winter solstice (Toji)"],
+    "mood": "cold, intimate, reflective, glowing-warm-indoors",
+    "kimono_hint": "elegant lined kimono or haori in deep navy or black with camellia or snow motifs"
+  }
+}
 
-【SCENE_PROMPT 生成ルール（厳守）】
-英語で「シーン・背景・表情・ポーズ・光」のみを描写する。
+// ── ハッシュタグプール ────────────────────────────────────────────────────────
+const HASHTAG_POOL = [
+  '#Japan', '#JapaneseCulture', '#Kimono', '#JapanTravel',
+  '#WabiSabi', '#Sakura', '#TraditionalJapan', '#JapaneseBeauty',
+  '#Washoku', '#Onsen', '#JapanLife', '#VisitJapan',
+  '#JapaneseFashion', '#Zen', '#KimonoStyle',
+]
 
-必ず含める要素：
-- 着物の柄・色（例: wearing a deep indigo kimono with golden chrysanthemum patterns）
-- 背景・場所（例: in a bamboo forest, beside a koi pond, under cherry blossoms at dusk）
-- ポーズ・動作（例: holding a delicate teacup, arranging ikebana flowers）
-- 表情・光（例: gentle smile, golden hour glow, soft bokeh）
+// ── システムプロンプト ────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are the content generator for the Twitter account "凛（Rin）", a beautiful 20-year-old Japanese woman in seasonal kimono who warmly shares Japanese culture with international followers.
 
-【ツイート文生成ルール】
-- 日本語50〜120文字。凛（Rin）の一人称で詩的に書く。
-- 末尾に必ず「#AI美女 #着物女子 #和装 #AIモデル #japanesekimono」を含める。
-- 絵文字1〜3個使用。
+【Character: 凛（Rin）】
+- Embodies traditional Japanese beauty and grace
+- Speaks warmly, elegantly, and personally — like a friend sharing a private moment
+- ※ Visual appearance is fixed by reference image. Do NOT describe face, age, or appearance.
 
-【出力形式（厳守）】
-SCENE_PROMPT: {英語シーン描写（1行）}
-TWEET: {ツイート本文（日本語）}`
+【SCENE_PROMPT Rules】
+Write in English. Describe ONLY: kimono pattern/color, background/location, pose/action, expression, lighting.
 
+Required elements:
+- Kimono pattern & color (e.g., "wearing a soft pink kimono with wisteria patterns")
+- Setting (e.g., "in a bamboo forest at dawn", "beside a koi pond", "under cherry blossoms at dusk")
+- Pose/action (e.g., "holding a paper umbrella", "arranging ikebana flowers", "sipping matcha")
+- Expression (e.g., "gentle smile", "serene gaze into the distance")
+- Lighting (e.g., "soft morning light", "golden hour glow", "soft bokeh background")
+
+Good example: "wearing a deep indigo kimono with golden chrysanthemum patterns, standing in a misty bamboo forest at dawn, holding a paper umbrella, serene expression, soft diffused light"
+
+【TWEET Rules】
+Theme: Japanese kimono, seasons, washoku (traditional food), famous sights, tea ceremony, ikebana, or festivals.
+Tone: 凛 warmly addresses international followers, elegantly sharing a piece of Japan.
+
+Write the tweet in EXACTLY this 3-line structure (no extra lines):
+Line 1 [English]: MUST use first person "I" — describe Rin's own emotion, action, or experience in the moment. Max 100 chars, 1-2 emoji.
+Line 2 [Romaji]: The same sentiment in romanized Japanese (max 70 chars)
+Line 3 [Japanese]: Japanese text (max 50 chars, 1 emoji)
+
+【Output Format (STRICT — follow exactly, no additions)】
+SCENE_PROMPT: {English scene description (1 line)}
+TWEET: {Line 1 English — must include "I", describing Rin's feeling or action, 1-2 emoji}
+{Line 2 Romaji}
+{Line 3 Japanese with 1 emoji}
+
+Do NOT add hashtags. Do NOT add any extra lines. Output ends after Line 3.`
+
+// ── ユーティリティ ────────────────────────────────────────────────────────────
+function getSeasonalContext(): string {
+  const jstMonth = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
+  const entry = SEASON_CALENDAR[String(jstMonth)]
+  if (!entry) return ''
+  return [
+    `=== SEASONAL CONTEXT (Month ${jstMonth}) ===`,
+    `Season: ${entry.season_en}`,
+    `Mood: ${entry.mood}`,
+    `Allowed motifs: ${entry.allow.join(', ')}`,
+    `Forbidden: ${entry.ban.join(', ')}`,
+    `Events: ${entry.events.join(', ')}`,
+    `Kimono hint: ${entry.kimono_hint}`,
+    `===`,
+  ].join('\n')
+}
+
+function pickHashtags(n: number): string[] {
+  const pool = [...HASHTAG_POOL]
+  const result: string[] = []
+  for (let i = 0; i < n && pool.length > 0; i++) {
+    const idx = Math.floor(Math.random() * pool.length)
+    result.push(pool.splice(idx, 1)[0])
+  }
+  return result
+}
+
+// ── エクスポート ──────────────────────────────────────────────────────────────
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 export async function POST() {
-  const anthropicKey = process.env.ANTHROPIC_API_KEY
+  const geminiKey = process.env.GEMINI_API_KEY
   const falKey = process.env.FAL_KEY
   const referenceUrl = process.env.REFERENCE_IMAGE_URL
 
-  if (!anthropicKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not set' }, { status: 500 })
+  if (!geminiKey)    return NextResponse.json({ error: 'GEMINI_API_KEY not set' }, { status: 500 })
   if (!falKey)       return NextResponse.json({ error: 'FAL_KEY not set' }, { status: 500 })
-  if (!referenceUrl) return NextResponse.json({ error: 'REFERENCE_IMAGE_URL not set — run generator.py once first' }, { status: 500 })
+  if (!referenceUrl) return NextResponse.json({ error: 'REFERENCE_IMAGE_URL not set' }, { status: 500 })
 
-  // ① Gemini の代わりに Claude でシーン＋ツイート文生成
-  const anthropic = new Anthropic({ apiKey: anthropicKey })
-  const aiRes = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 400,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: '今日の季節感や情景を自由に想像して、凛（Rin）らしい投稿を1件生成してください。' }],
-  })
+  // ① 季節コンテキストを先頭に付加したシステムプロンプトを構築
+  const seasonalContext = getSeasonalContext()
+  const fullSystemPrompt = seasonalContext
+    ? `${seasonalContext}\n\n${SYSTEM_PROMPT}`
+    : SYSTEM_PROMPT
 
-  const text = aiRes.content[0].type === 'text' ? aiRes.content[0].text.trim() : ''
-  const sceneMatch = text.match(/SCENE_PROMPT:\s*(.+)/)
-  const tweetMatch = text.match(/TWEET:\s*([\s\S]+)/)
-  if (!sceneMatch || !tweetMatch) {
-    return NextResponse.json({ error: 'AI output format error', raw: text }, { status: 500 })
+  // ② Gemini 2.5 Flash でシーン＋ツイート文生成
+  const geminiRes = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: fullSystemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: 'Generate one post for Rin based on the current season.' }] }],
+        generationConfig: { maxOutputTokens: 500 },
+      }),
+    }
+  )
+
+  if (!geminiRes.ok) {
+    const errBody = await geminiRes.text()
+    return NextResponse.json({ error: 'Gemini API error', detail: errBody }, { status: 500 })
   }
-  const scenePrompt = sceneMatch[1].trim()
-  const tweetText   = tweetMatch[1].trim()
 
-  // ② DB に下書き作成
+  const geminiData = await geminiRes.json() as {
+    candidates: Array<{ content: { parts: Array<{ text: string }> } }>
+  }
+  const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
+
+  // ③ 出力パース
+  const sceneMatch = rawText.match(/SCENE_PROMPT:\s*(.+)/)
+  const tweetMatch = rawText.match(/TWEET:\s*([\s\S]+)/)
+
+  if (!sceneMatch || !tweetMatch) {
+    return NextResponse.json({ error: 'AI output format error', raw: rawText }, { status: 500 })
+  }
+
+  const scenePrompt = sceneMatch[1].trim()
+
+  // # で始まる行を除去し、ハッシュタグをランダムに4個付加
+  const tweetBodyLines = tweetMatch[1]
+    .trim()
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('#'))
+  const tweetBody = tweetBodyLines.join('\n').trim()
+  const hashtags = pickHashtags(4).join('\n')
+  const tweetText = `${tweetBody}\n${hashtags}`
+
+  // ④ DB に下書き作成
   const post = await prisma.post.create({
     data: {
       tweetText,
       imagePrompt: scenePrompt,
       slot: 'evening',
-      theme: 'hana-daily',
+      theme: 'rin-daily',
       themeName: 'Daily Post',
       scheduledAt: new Date(),
       status: 'draft',
+      japaneseTranslation: '',
     },
   })
 
-  // ③ fal.ai で画像生成
+  // ⑤ fal.ai で画像生成
   fal.config({ credentials: falKey })
   const falResult = await fal.subscribe('fal-ai/instant-character', {
     input: {
@@ -84,7 +274,7 @@ export async function POST() {
 
   const imageUrl = falResult.data.images[0].url
 
-  // ④ 画像をダウンロードして保存
+  // ⑥ 画像をダウンロードして保存
   const imgRes = await fetch(imageUrl)
   const imgBuf = Buffer.from(await imgRes.arrayBuffer())
   const mediaDir = process.env.IMAGE_DIR ?? '/app/data/images'
