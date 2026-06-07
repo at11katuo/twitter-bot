@@ -8,6 +8,7 @@ const NO_CACHE = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const post = await prisma.post.findUnique({ where: { id: params.id } })
   if (!post) return NextResponse.json({ error: 'not found' }, { status: 404, headers: NO_CACHE })
+  console.log('[GET /api/posts/:id] id=%s tweetText=%j', params.id, post.tweetText?.slice(0, 40))
   return NextResponse.json(post, { headers: NO_CACHE })
 }
 
