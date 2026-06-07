@@ -109,16 +109,32 @@ export default function PostDetailClient({ initialPost }: { initialPost: PostDet
     }
   }
 
+  // ── クリップボードコピー（HTTP対応フォールバック付き） ──────────────
+  function copyToClipboard(text: string) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text)
+    }
+    const el = document.createElement('textarea')
+    el.value = text
+    el.style.cssText = 'position:fixed;opacity:0;top:0;left:0'
+    document.body.appendChild(el)
+    el.focus()
+    el.select()
+    document.execCommand('copy')
+    document.body.removeChild(el)
+    return Promise.resolve()
+  }
+
   // ── 本文コピー ───────────────────────────────────────────────────
   const handleCopyText = async () => {
-    await navigator.clipboard.writeText(tweetText)
+    await copyToClipboard(tweetText)
     setTextCopied(true)
     setTimeout(() => setTextCopied(false), 2500)
   }
 
   // ── プロンプトコピー ──────────────────────────────────────────────
   const handleCopyPrompt = async () => {
-    await navigator.clipboard.writeText(post.imagePrompt)
+    await copyToClipboard(post.imagePrompt)
     setPromptCopied(true)
     setTimeout(() => setPromptCopied(false), 2000)
   }
