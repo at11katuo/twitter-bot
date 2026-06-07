@@ -204,11 +204,9 @@ export async function POST() {
     ? `${seasonalContext}\n\n${SYSTEM_PROMPT}`
     : SYSTEM_PROMPT
 
-  // ② Gemini 2.0 Flash でシーン＋ツイート文生成
-  // gemini-2.5-flash はプレビュー版で thinking tokens の扱いが不安定なため
-  // GA 安定版の gemini-2.0-flash を使用（thinking なし、高速）
+  // ② Gemini 1.5 Flash でシーン＋ツイート文生成
   const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
