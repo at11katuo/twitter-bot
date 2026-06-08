@@ -27,10 +27,11 @@ from google.genai import types
 import fal_client
 
 try:
-    from research.context_builder import build_full_context
+    from research.context_builder import build_full_context, build_kimono_prompt
     from research.trend_collector import get_trend_context
 except ImportError:
     def build_full_context(**_): return ""
+    def build_kimono_prompt(**_): return ""
     def get_trend_context(): return ""
 
 load_dotenv()
@@ -178,9 +179,8 @@ def generate_content(theme: str = "") -> tuple[str, str]:
         raise RuntimeError("GEMINI_API_KEY が未設定です。")
 
     # 季節コンテキスト + キャラクター定義を注入
-    seasonal_ctx = build_full_context()
-    trend_ctx    = get_trend_context()  # OPENROUTER_API_KEY 未設定時は空文字
-    enriched_system = f"{seasonal_ctx}\n\n{trend_ctx}\n\n{SYSTEM_PROMPT}".strip()
+    trend_ctx = get_trend_context()  # OPENROUTER_API_KEY 未設定時は空文字
+    enriched_system = f"{build_full_context(research_snippet=trend_ctx or None)}\n\n{SYSTEM_PROMPT}".strip()
 
     client = genai.Client(api_key=GEMINI_API_KEY)
     user_message = (
@@ -321,7 +321,9 @@ def run(theme: str = "", count: int = 1) -> None:
         print(f"[ツイート] {tweet_text}")
 
         post_id = create_post(tweet_text, scene_prompt)
-        image_url = generate_fal_image(scene_prompt, reference_url)
+        kimono_hint = build_kimono_prompt()
+        fal_prompt  = f"{scene_prompt}, {kimono_hint}" if kimono_hint else scene_prompt
+        image_url = generate_fal_image(fal_prompt, reference_url)
         upload_image_to_dashboard(post_id, image_url)
 
         print(f"[完了] ダッシュボードに下書きを保存しました (ID: {post_id})")

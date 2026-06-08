@@ -1,105 +1,125 @@
 """
-context_builder.py
-外部API・DB不要。season_calendar.json + character_profile.json から
-Gemini プロンプトに注入するコンテキスト文字列を組み立てる。
+context_builder.py — ①季節カレンダー注入 + ②キャラ固定 の中核。
 
-使用例:
-    from research.context_builder import build_full_context
-    ctx = build_full_context()          # 今月で自動判定
-    ctx = build_full_context(month=6)   # 月を指定
+外部DB・外部APIに一切依存しない。generator.py から呼び出して、
+LLMに渡すプロンプトの「先頭」に注入する文字列を組み立てるだけ。
+
+使い方（generator.py 側のイメージ）:
+    from research.context_builder import build_full_context, build_kimono_prompt
+
+    system_context = build_full_context()   # キャラ設定 + 季節制約（毎回先頭に固定）
+    kimono         = build_kimono_prompt()  # 画像プロンプトに足す一文
 """
 
 import json
-import datetime
-from pathlib import Path
+import os
+import random as _random
+from datetime import date
 
-_HERE = Path(__file__).parent
-_CALENDAR_PATH  = _HERE / "season_calendar.json"
-_CHARACTER_PATH = _HERE / "character_profile.json"
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 
-def _load_json(path: Path) -> dict:
-    with open(path, encoding="utf-8") as f:
+def _load(name: str) -> dict:
+    with open(os.path.join(_DATA_DIR, name), "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def get_season_data(month: int | None = None) -> dict:
-    """指定月（未指定なら現在月JST）の季節データを返す。"""
+def get_season(month: int | None = None) -> dict:
+    """今月（または指定月）の季節モチーフを返す。"""
     if month is None:
-        jst = datetime.timezone(datetime.timedelta(hours=9))
-        month = datetime.datetime.now(jst).month
-    calendar = _load_json(_CALENDAR_PATH)
-    return calendar[str(month)]
+        month = date.today().month
+    cal = _load("season_calendar.json")
+    return cal[str(month)]
 
 
-def get_character_profile() -> dict:
-    return _load_json(_CHARACTER_PATH)
+def get_character() -> dict:
+    return _load("character_profile.json")
 
 
-def build_full_context(month: int | None = None) -> str:
-    """
-    Gemini システムプロンプトの先頭に差し込む季節×キャラクター文脈を返す。
-    Returns a plain string ready to prepend to any existing system prompt.
-    """
-    season = get_season_data(month)
-    char   = get_character_profile()
-
-    allowed_str  = ", ".join(season["allow"])
-    forbidden_str = ", ".join(season["ban"])
-    events_str   = ", ".join(season["events"])
-
-    do_str   = "; ".join(char["do"])
-    dont_str = "; ".join(char["dont"])
-    tf       = char["tweet_format"]
-
-    context = f"""=== SEASONAL CONTEXT ({season['season_en']}) ===
-Mood: {season['mood']}
-
-Use these motifs: {allowed_str}
-Do NOT use (out of season): {forbidden_str}
-
-Events this month: {events_str}
-Kimono styling hint: {season['kimono_hint']}
-
-=== CHARACTER: {char['name']} ({char['name_ja']}) ===
-Persona: {char['persona']}
-Voice: {char['voice']['tone']}
-Sentence style: {char['voice']['sentence_style']}
-Audience: {char['audience']}
-
-DO: {do_str}
-DONT: {dont_str}
-
-Tweet format: {tf['structure']}
-  • English line: {tf['english_line']}
-  • Romaji line:  {tf['romaji_line']}
-  • Japanese line: {tf['japanese_line']}
-  • Hashtags: {tf['hashtags']}
-
-==="""
-    return context.strip()
-
-
-def build_kimono_prompt(month: int | None = None) -> str:
-    """今月の季節に合った一文の着物画像プロンプトを返す（/kimono エンドポイント用）。"""
-    season = get_season_data(month)
-    motifs = ", ".join(season["allow"][:3])
+def build_system_context() -> str:
+    """②キャラ固定: 毎回プロンプト先頭に置くキャラ宣言。"""
+    c = get_character()
+    do   = "\n".join(f"- {x}" for x in c["do"])
+    dont = "\n".join(f"- {x}" for x in c["dont"])
     return (
-        f"A beautiful 20-year-old Japanese woman in {season['kimono_hint']}, "
-        f"surrounded by {motifs}, "
-        f"{season['mood'].lower()}, soft natural light, traditional Japanese setting"
+        f"You are writing X (Twitter) posts as a persona named {c['name']} ({c['name_ja']}).\n"
+        f"PERSONA: {c['persona']}\n"
+        f"AUDIENCE: {c['audience']}\n"
+        f"VOICE: {c['voice']['tone']}. {c['voice']['sentence_style']}. "
+        f"Use {c['voice']['person']}, {c['voice']['tense']}.\n"
+        f"LENGTH: {c['post_length']}\n"
+        f"DO:\n{do}\n"
+        f"DON'T:\n{dont}\n"
+        f"Stay strictly in character. Output only the post text unless asked otherwise."
     )
 
 
-def get_forbidden_motifs(month: int | None = None) -> list[str]:
-    """今月の禁止モチーフリストを返す（プロンプト検証用）。"""
-    return get_season_data(month)["ban"]
+def build_season_block(month: int | None = None) -> str:
+    """①季節注入: 今月使ってよい/禁止モチーフと行事をLLMに強制する。"""
+    s = get_season(month)
+    allow  = ", ".join(s["allow"])
+    ban    = ", ".join(s["ban"])
+    events = ", ".join(s["events"])
+    return (
+        f"CURRENT SEASON: {s['season_en']}.\n"
+        f"USE these seasonal motifs only: {allow}.\n"
+        f"DO NOT mention (out of season): {ban}.\n"
+        f"Relevant seasonal events you may reference: {events}.\n"
+        f"Target mood: {s['mood']}."
+    )
 
 
-def get_allowed_motifs(month: int | None = None) -> list[str]:
-    """今月の推奨モチーフリストを返す。"""
-    return get_season_data(month)["allow"]
+def build_full_context(month: int | None = None, research_snippet: str | None = None) -> str:
+    """
+    全部入り。research_snippet は③のリサーチ要約（任意）。
+    リサーチが無くても季節+キャラだけで成立する＝フォールバック維持。
+    """
+    parts = [build_system_context(), build_season_block(month)]
+    if research_snippet:
+        parts.append(f"TODAY'S TRENDING ANGLES (optional inspiration):\n{research_snippet}")
+    return "\n\n".join(parts)
+
+
+# ============================================================
+# 着物の柄バリエーション（季節柄＋たまに定番柄）
+# ============================================================
+
+def pick_kimono_pattern(month: int | None = None, seed: int | None = None) -> dict:
+    """
+    今月の季節柄、またはたまに定番柄を1つ選び、色・帯も添えて返す。
+    返り値: {"pattern":..., "color":..., "obi":..., "is_classic":bool}
+    seed を渡すと再現可能（同じ投稿で画像とキャプションを揃えたい時用）。
+    """
+    if month is None:
+        month = date.today().month
+    rng = _random.Random(seed)
+    kp  = _load("kimono_patterns.json")
+
+    use_classic = rng.random() < kp.get("classic_ratio", 0.25)
+    if use_classic:
+        pattern = rng.choice(kp["classic"])
+    else:
+        seasonal = kp["seasonal"].get(str(month)) or kp["classic"]
+        pattern  = rng.choice(seasonal)
+
+    return {
+        "pattern":    pattern,
+        "color":      rng.choice(kp["colors"]),
+        "obi":        rng.choice(kp["obi"]),
+        "is_classic": use_classic,
+    }
+
+
+def build_kimono_prompt(month: int | None = None, seed: int | None = None) -> str:
+    """画像生成プロンプトに足す一文を返す。既存の画像プロンプト末尾に連結するだけ。"""
+    k = pick_kimono_pattern(month, seed)
+    return (
+        f"She is wearing a {k['color']} kimono with a {k['pattern']}, "
+        f"paired with {k['obi']}."
+    )
 
 
 if __name__ == "__main__":
     print(build_full_context())
+    print()
+    print(build_kimono_prompt())

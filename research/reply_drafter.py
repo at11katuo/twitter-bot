@@ -9,7 +9,7 @@ import urllib.request
 from dotenv import load_dotenv
 load_dotenv()
 
-from research.context_builder import get_season_data, get_character_profile
+from research.context_builder import get_season, get_character
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL   = os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
@@ -28,8 +28,8 @@ def draft_replies(
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY が未設定です。")
 
-    season = get_season_data(month)
-    char   = get_character_profile()
+    season = get_season(month)
+    char   = get_character()
 
     author_line = f"@{author.lstrip('@')}: " if author else ""
     prompt = f"""You are generating reply tweet drafts for the Twitter account "凛（Rin）", \

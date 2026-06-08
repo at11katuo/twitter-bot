@@ -11,6 +11,7 @@ packages/data/
 research/.cache/
 research/data/*
 !research/data/.gitkeep
+!research/data/*.json
 .DS_Store
 dist/
 reference.png

@@ -26,7 +26,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-from research.context_builder import get_season_data
+from research.context_builder import get_season
 
 _HERE      = Path(__file__).parent
 _CACHE_DIR = _HERE / ".cache"
@@ -240,7 +240,7 @@ def get_trend_context(month: int | None = None, force_refresh: bool = False) -> 
         print("[trend] OPENROUTER_API_KEY 未設定 — トレンドコンテキストをスキップ")
         return ""
 
-    season   = get_season_data(month)
+    season   = get_season(month)
     query    = f"Japan {season['season_en']} culture kimono tradition"
     print(f"[trend] Web検索: {query}")
     snippets = _search_tavily(query)

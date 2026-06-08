@@ -1,0 +1,103 @@
+{
+  "_comment": "着物の柄・色・帯プール。classic_ratio = 定番柄を選ぶ確率（0.25 = 4回に1回）。seasonal は月ごとの季節柄。",
+  "classic_ratio": 0.25,
+  "classic": [
+    "crane and pine (tsuru-matsu) pattern",
+    "chrysanthemum (kiku) all-over pattern",
+    "flowing water (nagare) pattern",
+    "diamond (hishi) lattice pattern",
+    "scattered plum blossom (ume chirashi) pattern",
+    "folding fan (sensu) pattern",
+    "tortoiseshell (kikkou) geometric pattern",
+    "woven bamboo (take-ami) pattern"
+  ],
+  "seasonal": {
+    "1": [
+      "pine, bamboo and plum (shochikubai) motif",
+      "crane soaring over snowfield pattern",
+      "camellia (tsubaki) on white ground pattern",
+      "golden sunrise (hatsuhinode) pattern"
+    ],
+    "2": [
+      "plum blossom (ume) scattered pattern",
+      "camellia (tsubaki) branch pattern",
+      "early spring warbler (uguisu) and plum pattern"
+    ],
+    "3": [
+      "cherry blossom (sakura) petals scattered pattern",
+      "peach blossom (momo) and butterfly pattern",
+      "spring mist (kasumi) with cherry blossom pattern"
+    ],
+    "4": [
+      "cherry blossom (sakura) in full bloom pattern",
+      "wisteria (fuji) hanging cluster pattern",
+      "swallow (tsubame) and willow pattern"
+    ],
+    "5": [
+      "wisteria (fuji) and iris (kakitsubata) pattern",
+      "fresh green maple (wakaba momiji) pattern",
+      "carp (koi) swimming pattern"
+    ],
+    "6": [
+      "hydrangea (ajisai) in rain pattern",
+      "willow (yanagi) in the mist pattern",
+      "rain drop (amedare) ripple pattern"
+    ],
+    "7": [
+      "morning glory (asagao) vine pattern",
+      "goldfish (kingyo) and water plant pattern",
+      "summer fireworks (hanabi) burst pattern"
+    ],
+    "8": [
+      "sunflower (himawari) pattern",
+      "wave (seigaiha) ocean pattern",
+      "cicada (semi) on summer leaves pattern"
+    ],
+    "9": [
+      "autumn grasses (susuki) and moon pattern",
+      "dragonfly (tonbo) and red maple pattern",
+      "rabbit and full moon (usagi to tsukimi) pattern"
+    ],
+    "10": [
+      "autumn maple (momiji) scattered pattern",
+      "chrysanthemum festival (kiku matsuri) pattern",
+      "deer (shika) and autumn leaves pattern"
+    ],
+    "11": [
+      "autumn maple and ginkgo (ginnan) pattern",
+      "harvest grain (inaho) pattern",
+      "wild boar (inoshishi) and autumn grass pattern"
+    ],
+    "12": [
+      "winter camellia (fuyu tsubaki) pattern",
+      "snowflake (yukiwa) crystal pattern",
+      "pine needles (matsuba) on winter ground pattern"
+    ]
+  },
+  "colors": [
+    "deep indigo (kon)",
+    "soft ivory (shironeri)",
+    "pale blush pink (sakura-iro)",
+    "moss green (koke-iro)",
+    "dusty lavender (fuji-iro)",
+    "warm terracotta (kakishibu)",
+    "midnight navy (kon-iro)",
+    "sage green (urayanagi)",
+    "muted rose gold (shojo-hi)",
+    "charcoal grey (noshime)",
+    "deep crimson (enji)",
+    "autumn amber (yamabuki)",
+    "cedar bark brown (sugi-iro)"
+  ],
+  "obi": [
+    "a gold brocade (nishiki) obi with geometric shippo pattern",
+    "a silver and white woven obi with crane motifs",
+    "a deep red satin obi with chrysanthemum embroidery",
+    "a pale gold fukuro obi with phoenix (ho-oh) patterns",
+    "a sage green obi with subtle pine needle weave",
+    "a midnight blue obi with silver cloud (kumo) patterns",
+    "a cream obi with delicate autumn leaf (momiji) embroidery",
+    "a dusty rose obi with wisteria (fuji) woven pattern",
+    "a black lacquer obi with gold cherry blossom (sakura) motifs"
+  ]
+}
