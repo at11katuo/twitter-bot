@@ -288,20 +288,35 @@ export async function POST() {
 
   // ⑤ fal.ai で画像生成
   fal.config({ credentials: falKey })
-  const falResult = await fal.subscribe('fal-ai/instant-character', {
-    input: {
-      image_url: referenceUrl,
-      prompt: scenePrompt,
-      num_images: 1,
-      output_format: 'png',
-    },
-  }) as { data: { images: { url: string }[] } }
+  let falResult: { data: { images: { url: string }[] } }
+  try {
+    console.log('[generate/rin] fal.ai 開始 prompt=%j', scenePrompt.slice(0, 120))
+    falResult = await fal.subscribe('fal-ai/instant-character', {
+      input: {
+        image_url: referenceUrl,
+        prompt: scenePrompt,
+        num_images: 1,
+        output_format: 'png',
+      },
+    }) as { data: { images: { url: string }[] } }
+    console.log('[generate/rin] fal.ai 完了 imageUrl=%s', falResult?.data?.images?.[0]?.url?.slice(0, 80))
+  } catch (falErr) {
+    console.error('[generate/rin] fal.ai エラー:', falErr)
+    return NextResponse.json({ error: 'fal.ai image generation failed', detail: String(falErr), id: post.id }, { status: 500 })
+  }
 
   const imageUrl = falResult.data.images[0].url
 
   // ⑥ 画像をダウンロードして保存
-  const imgRes = await fetch(imageUrl)
-  const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+  let imgBuf: Buffer
+  try {
+    const imgRes = await fetch(imageUrl)
+    imgBuf = Buffer.from(await imgRes.arrayBuffer())
+  } catch (dlErr) {
+    console.error('[generate/rin] 画像DLエラー:', dlErr)
+    return NextResponse.json({ error: 'image download failed', detail: String(dlErr), id: post.id }, { status: 500 })
+  }
+
   const mediaDir = process.env.IMAGE_DIR ?? '/app/data/images'
   fs.mkdirSync(mediaDir, { recursive: true })
   const filename = `${post.id}.png`
