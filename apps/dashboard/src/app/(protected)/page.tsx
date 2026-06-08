@@ -1,4 +1,5 @@
 import { prisma } from '@hana/db'
+import TabShell from './_components/TabShell'
 import GenerateRin from './_components/GenerateRin'
 import PostCardClient from './_components/PostCardClient'
 import TrashSection from './_components/TrashSection'
@@ -42,12 +43,10 @@ export default async function HomePage() {
   const sortedDates = Array.from(grouped.keys()).sort()
   const todayKey = getJSTDateKey(new Date())
 
-  return (
+  const postsPanel = (
     <div className="space-y-4">
-      {/* 凛 生成パネル */}
       <GenerateRin />
 
-      {/* 投稿一覧 */}
       {sortedDates.length === 0 ? (
         <p className="text-center text-slate-500 py-16 text-sm">
           投稿がありません。
@@ -59,9 +58,9 @@ export default async function HomePage() {
             const isToday = dateKey === todayKey
             const isFuture = dateKey >= todayKey
 
-            const readyCount  = dayPosts.filter((p) => p.status === 'ready').length
-            const postedCount = dayPosts.filter((p) => p.status === 'posted' || p.status === 'done').length
-            const draftCount  = dayPosts.filter((p) => p.status === 'draft').length
+            const readyCount   = dayPosts.filter((p) => p.status === 'ready').length
+            const postedCount  = dayPosts.filter((p) => p.status === 'posted' || p.status === 'done').length
+            const draftCount   = dayPosts.filter((p) => p.status === 'draft').length
             const skippedCount = dayPosts.filter((p) => p.status === 'skipped').length
 
             return (
@@ -103,7 +102,6 @@ export default async function HomePage() {
         </div>
       )}
 
-      {/* ゴミ箱 */}
       <TrashSection posts={deletedPosts.map((p) => ({
         id: p.id,
         tweetText: p.tweetText,
@@ -113,4 +111,6 @@ export default async function HomePage() {
       }))} />
     </div>
   )
+
+  return <TabShell postsPanel={postsPanel} />
 }

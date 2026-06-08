@@ -48,6 +48,20 @@ services:
         condition: service_completed_successfully
     networks: [internal]
 
+  research-api:
+    build:
+      context: .
+      dockerfile: docker/research-api.Dockerfile
+    env_file: .env
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-deepseek/deepseek-chat}
+      - TZ=Asia/Tokyo
+    ports:
+      - "8787:8787"
+    restart: unless-stopped
+    networks: [internal]
+
   research-worker:
     build:
       context: .

@@ -80,6 +80,17 @@ Tweet format: {tf['structure']}
     return context.strip()
 
 
+def build_kimono_prompt(month: int | None = None) -> str:
+    """今月の季節に合った一文の着物画像プロンプトを返す（/kimono エンドポイント用）。"""
+    season = get_season_data(month)
+    motifs = ", ".join(season["allow"][:3])
+    return (
+        f"A beautiful 20-year-old Japanese woman in {season['kimono_hint']}, "
+        f"surrounded by {motifs}, "
+        f"{season['mood'].lower()}, soft natural light, traditional Japanese setting"
+    )
+
+
 def get_forbidden_motifs(month: int | None = None) -> list[str]:
     """今月の禁止モチーフリストを返す（プロンプト検証用）。"""
     return get_season_data(month)["ban"]
