@@ -6,9 +6,11 @@ queue/
 posted/
 __pycache__/
 *.py[cod]
-data/
+/data/
 packages/data/
 research/.cache/
+research/data/*
+!research/data/.gitkeep
 .DS_Store
 dist/
 reference.png

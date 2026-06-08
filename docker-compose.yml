@@ -59,6 +59,8 @@ services:
       - TZ=Asia/Tokyo
     ports:
       - "8787:8787"
+    volumes:
+      - ./research/data:/app/research/data
     restart: unless-stopped
     networks: [internal]
 
