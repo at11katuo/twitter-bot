@@ -286,19 +286,28 @@ export async function POST() {
     },
   })
 
-  // ⑤ fal.ai で画像生成
+  // ⑤ fal.ai で画像生成（120秒タイムアウト付き）
   fal.config({ credentials: falKey })
   let falResult: { data: { images: { url: string }[] } }
   try {
     console.log('[generate/rin] fal.ai 開始 prompt=%j', scenePrompt.slice(0, 120))
-    falResult = await fal.subscribe('fal-ai/instant-character', {
-      input: {
-        image_url: referenceUrl,
-        prompt: scenePrompt,
-        num_images: 1,
-        output_format: 'png',
-      },
-    }) as { data: { images: { url: string }[] } }
+    falResult = await Promise.race([
+      fal.subscribe('fal-ai/instant-character', {
+        input: {
+          image_url: referenceUrl,
+          prompt: scenePrompt,
+          num_images: 1,
+          output_format: 'png',
+        },
+        pollInterval: 3000,
+        onQueueUpdate(update) {
+          console.log('[generate/rin] fal.ai queue status=%s', (update as { status: string }).status)
+        },
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('fal.ai timeout after 120s')), 120_000)
+      ),
+    ]) as { data: { images: { url: string }[] } }
     console.log('[generate/rin] fal.ai 完了 imageUrl=%s', falResult?.data?.images?.[0]?.url?.slice(0, 80))
   } catch (falErr) {
     console.error('[generate/rin] fal.ai エラー:', falErr)
