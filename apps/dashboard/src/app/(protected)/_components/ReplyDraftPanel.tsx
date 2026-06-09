@@ -1,11 +1,22 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface Draft {
   reply: string
   reply_ja?: string
   image_prompt: string
 }
+
+interface SavedDraft {
+  id: string
+  reply: string
+  reply_ja?: string
+  imageUrl?: string
+  savedAt: number
+}
+
+const STORAGE_KEY = 'hana-reply-drafts'
+const MAX_SAVED = 3
 
 async function fetchReplyDrafts(
   post: string,
@@ -34,6 +45,24 @@ async function generateReplyImage(imagePrompt: string): Promise<string> {
   return data.imageUrl as string
 }
 
+// HTTPS でも HTTP でも動くコピー
+function copyToClipboard(text: string): void {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => execCopy(text))
+  } else {
+    execCopy(text)
+  }
+}
+function execCopy(text: string): void {
+  const el = document.createElement('textarea')
+  el.value = text
+  el.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+  document.body.appendChild(el)
+  el.focus(); el.select()
+  try { document.execCommand('copy') } catch { /* noop */ }
+  document.body.removeChild(el)
+}
+
 export default function ReplyDraftPanel() {
   const [post, setPost]     = useState('')
   const [author, setAuthor] = useState('')
@@ -45,6 +74,14 @@ export default function ReplyDraftPanel() {
   const [imgLoading, setImgLoading] = useState<number | null>(null)
   const [images, setImages]     = useState<Record<number, string>>({})
   const [imgErrors, setImgErrors] = useState<Record<number, string>>({})
+  const [saved, setSaved] = useState<SavedDraft[]>(() => {
+    if (typeof window === 'undefined') return []
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') } catch { return [] }
+  })
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved))
+  }, [saved])
 
   async function handleGenerate() {
     if (!post.trim()) { setError('投稿本文を入力してください'); return }
@@ -59,8 +96,8 @@ export default function ReplyDraftPanel() {
     }
   }
 
-  async function handleCopy(text: string, key: string) {
-    await navigator.clipboard.writeText(text)
+  function handleCopy(text: string, key: string) {
+    copyToClipboard(text)
     setCopied(key)
     setTimeout(() => setCopied(null), 1500)
   }
@@ -78,8 +115,27 @@ export default function ReplyDraftPanel() {
     }
   }
 
+  function handleSave(draft: Draft, index: number) {
+    const entry: SavedDraft = {
+      id: `${Date.now()}-${index}`,
+      reply: draft.reply,
+      reply_ja: draft.reply_ja,
+      imageUrl: images[index],
+      savedAt: Date.now(),
+    }
+    setSaved(prev => {
+      const next = [entry, ...prev]
+      return next.slice(0, MAX_SAVED)  // 古いものを末尾から削除
+    })
+  }
+
+  function handleDeleteSaved(id: string) {
+    setSaved(prev => prev.filter(s => s.id !== id))
+  }
+
   return (
     <div className="space-y-4">
+      {/* 入力フォーム */}
       <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-4 space-y-3">
         <h2 className="text-sm font-semibold text-pink-200">🌸 リプライ下書き生成</h2>
 
@@ -126,6 +182,7 @@ export default function ReplyDraftPanel() {
         {error && <p className="text-xs text-red-400">{error}</p>}
       </div>
 
+      {/* 生成候補 */}
       {drafts.length > 0 && (
         <div className="space-y-2">
           {drafts.map((d, i) => (
@@ -182,11 +239,56 @@ export default function ReplyDraftPanel() {
                   className="rounded-xl w-full max-w-sm object-cover"
                 />
               )}
+
+              <button
+                onClick={() => handleSave(d, i)}
+                className="w-full rounded-lg border border-pink-800/60 py-1.5 text-xs text-pink-300 transition hover:bg-pink-900/30"
+              >
+                保存する（最大{MAX_SAVED}件）
+              </button>
             </div>
           ))}
           <p className="text-xs text-slate-600 text-center pb-2">
             ※ 送信は手動。候補を選んでXで返信してください。
           </p>
+        </div>
+      )}
+
+      {/* 保存済み一覧 */}
+      {saved.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-400 font-semibold px-1">
+            保存済み {saved.length}/{MAX_SAVED}件
+          </p>
+          {saved.map(s => (
+            <div key={s.id} className="rounded-2xl border border-pink-900/40 bg-slate-900/80 p-4 space-y-2">
+              <p className="text-sm text-slate-200 leading-relaxed">{s.reply}</p>
+              {s.reply_ja && (
+                <p className="text-xs text-slate-500 italic">{s.reply_ja}</p>
+              )}
+              {s.imageUrl && (
+                <img
+                  src={s.imageUrl}
+                  alt="保存済み画像"
+                  className="rounded-xl w-full max-w-sm object-cover"
+                />
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleCopy(s.reply, `saved-${s.id}`)}
+                  className="text-xs rounded-lg bg-slate-700 px-3 py-1.5 text-slate-300 transition hover:bg-slate-600"
+                >
+                  {copied === `saved-${s.id}` ? 'コピー完了 ✓' : 'コピー'}
+                </button>
+                <button
+                  onClick={() => handleDeleteSaved(s.id)}
+                  className="text-xs rounded-lg bg-slate-800 px-3 py-1.5 text-slate-500 transition hover:bg-slate-700 hover:text-red-400"
+                >
+                  削除
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
