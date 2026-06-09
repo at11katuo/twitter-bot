@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 interface Draft {
   reply: string
+  reply_ja?: string
   image_prompt: string
 }
 
@@ -132,8 +133,17 @@ export default function ReplyDraftPanel() {
               <p className="text-xs text-slate-500">候補 {i + 1}</p>
 
               <div className="space-y-1">
-                <p className="text-xs text-pink-400 font-medium">REPLY</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xs text-pink-400 font-medium">REPLY</p>
+                  <p className="text-xs text-slate-500">{d.reply.length}字</p>
+                  {d.reply.length > 140 && (
+                    <p className="text-xs text-red-400 font-semibold">⚠ 140字超過</p>
+                  )}
+                </div>
                 <p className="text-sm text-slate-200 leading-relaxed">{d.reply}</p>
+                {d.reply_ja && (
+                  <p className="text-xs text-slate-500 leading-relaxed italic">{d.reply_ja}</p>
+                )}
                 <button
                   onClick={() => handleCopy(d.reply, `reply-${i}`)}
                   className="text-xs rounded-lg bg-slate-700 px-3 py-1.5 text-slate-300 transition hover:bg-slate-600"

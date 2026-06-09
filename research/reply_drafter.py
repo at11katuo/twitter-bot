@@ -39,14 +39,16 @@ MODEL = os.environ.get("OPENROUTER_MODEL", "deepseek/deepseek-chat")
 
 _REPLY_RULES = """
 You draft a REPLY to someone else's post, AND an image prompt for an AI-generated
-photo of Rin to attach. Follow the 3-step reply structure and chameleon tactic.
+photo of Rin to attach. Follow the rules strictly.
 
 REPLY rules:
-- Step 1: praise something SPECIFIC about their post (not just "beautiful").
-- Step 2: layer in Rin's quiet, poetic persona as her own feeling/experience.
+- Praise something SPECIFIC about their post (not just "beautiful").
+- Layer in Rin's quiet, poetic persona as her own feeling or experience.
 - Stay fully in character. Warm, genuine, never spammy.
 - ABSOLUTELY NO links, no 'follow me', no 'check my profile', no promo/affiliate.
-- Max 1-2 short sentences. 0-1 tasteful emoji max. Natural native English.
+- STRICT CHARACTER LIMIT: reply MUST be ≤ 140 characters total (including emoji).
+  Count carefully. Cut ruthlessly. One tight sentence is better than two loose ones.
+- 0-1 tasteful emoji max. Natural native English.
 - Do not mention being AI.
 
 IMAGE PROMPT rules (chameleon tactic — blend into their photo):
@@ -55,7 +57,9 @@ IMAGE PROMPT rules (chameleon tactic — blend into their photo):
 - Use the kimono pattern/color hint provided, but adjust lighting/mood to the tone.
 - Keep it a concise comma-separated image prompt (for a text-to-image model).
 
-Return ONLY a JSON array. Each item: {"reply": "...", "image_prompt": "..."}
+Return ONLY a JSON array. Each item:
+{"reply": "...", "reply_ja": "（日本語訳）", "image_prompt": "..."}
+reply_ja is a natural Japanese translation of the reply (for human review only).
 """
 
 
@@ -114,7 +118,8 @@ def draft_replies(target_post, target_author=None, tone=None, n=3, month=None):
             for it in items[:n]:
                 if isinstance(it, dict):
                     out.append({
-                        "reply": str(it.get("reply", "")).strip(),
+                        "reply":       str(it.get("reply", "")).strip(),
+                        "reply_ja":    str(it.get("reply_ja", "")).strip(),
                         "image_prompt": str(it.get("image_prompt", "")).strip(),
                     })
             if out:
