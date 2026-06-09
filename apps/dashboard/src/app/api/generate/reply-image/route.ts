@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { fal } from '@fal-ai/client'
+import fs from 'fs'
+import path from 'path'
 
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
@@ -17,6 +19,7 @@ export async function POST(req: Request) {
 
   // image_prompt には reply_drafter が kimono hint を既に埋め込み済みなので追加しない
   fal.config({ credentials: falKey })
+  let falImageUrl: string
   try {
     console.log('[generate/reply-image] fal.ai 開始 prompt=%j', imagePrompt.slice(0, 160))
     const falResult = await Promise.race([
@@ -37,11 +40,29 @@ export async function POST(req: Request) {
       ),
     ]) as { data: { images: { url: string }[] } }
 
-    const imageUrl = falResult.data.images[0].url
-    console.log('[generate/reply-image] fal.ai 完了 imageUrl=%s', imageUrl.slice(0, 80))
-    return NextResponse.json({ ok: true, imageUrl })
+    falImageUrl = falResult.data.images[0].url
+    console.log('[generate/reply-image] fal.ai 完了 imageUrl=%s', falImageUrl.slice(0, 80))
   } catch (err) {
     console.error('[generate/reply-image] fal.ai エラー:', err)
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 })
   }
+
+  // ローカルに保存
+  const mediaDir = process.env.IMAGE_DIR ?? '/app/data/images'
+  const repliesDir = path.join(mediaDir, 'replies')
+  fs.mkdirSync(repliesDir, { recursive: true })
+
+  const filename = `reply-${Date.now()}.png`
+  try {
+    const imgRes = await fetch(falImageUrl)
+    const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+    fs.writeFileSync(path.join(repliesDir, filename), imgBuf)
+    console.log('[generate/reply-image] 保存完了 filename=%s', filename)
+  } catch (err) {
+    console.error('[generate/reply-image] 保存エラー:', err)
+    // 保存失敗でも fal.ai URL を返す（一時的に表示できる）
+    return NextResponse.json({ ok: true, imageUrl: falImageUrl, saved: false })
+  }
+
+  return NextResponse.json({ ok: true, imageUrl: `/api/reply-image/${filename}`, saved: true })
 }
