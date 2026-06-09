@@ -6,7 +6,8 @@ api.py — リサーチ機能の薄いHTTP API（方式A）。
 投稿APIは一切叩かない（送信は人間が手動）。
 
 起動:
-    uvicorn research.api:app --host 0.0.0.0 --port 8787
+    pip install fastapi uvicorn requests
+    OPENROUTER_API_KEY=xxx uvicorn research.api:app --host 0.0.0.0 --port 8787
 
 エンドポイント:
     POST /reply-drafts   {"post": "...", "author": "@x", "n": 3}  -> {"drafts": [...]}
@@ -36,6 +37,7 @@ app.add_middleware(
 class ReplyReq(BaseModel):
     post: str
     author: str | None = None
+    tone: str | None = None
     n: int = 3
     month: int | None = None
 
@@ -48,7 +50,7 @@ def healthz():
 @app.post("/reply-drafts")
 def reply_drafts(req: ReplyReq):
     try:
-        drafts = draft_replies(req.post, req.author, req.n, req.month)
+        drafts = draft_replies(req.post, req.author, req.tone, req.n, req.month)
         return {"ok": True, "drafts": drafts}
     except Exception as e:
         return {"ok": False, "error": str(e), "drafts": []}
