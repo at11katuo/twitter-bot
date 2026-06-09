@@ -19,6 +19,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY packages/ packages/
 COPY apps/dashboard/ apps/dashboard/
+COPY research/data/ research/data/
 
 RUN apk add --no-cache libc6-compat openssl
 RUN pnpm install prisma @prisma/client -w

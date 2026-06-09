@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { fal } from '@fal-ai/client'
 import fs from 'fs'
 import path from 'path'
+import kimonoPatterns from '../../../../../../../research/data/kimono_patterns.json'
 
 // ── 季節カレンダー（season_calendar.json の内容を定数として埋め込み） ──────────
 interface SeasonEntry {
@@ -175,6 +176,18 @@ function getSeasonalContext(): string {
   ].join('\n')
 }
 
+function pickKimonoHint(month: number): string {
+  const useClassic = Math.random() < kimonoPatterns.classic_ratio
+  const key = String(month) as keyof typeof kimonoPatterns.seasonal
+  const pool = useClassic
+    ? kimonoPatterns.classic
+    : (kimonoPatterns.seasonal[key] ?? kimonoPatterns.classic)
+  const pattern = pool[Math.floor(Math.random() * pool.length)]
+  const color = kimonoPatterns.colors[Math.floor(Math.random() * kimonoPatterns.colors.length)]
+  const obi = kimonoPatterns.obi[Math.floor(Math.random() * kimonoPatterns.obi.length)]
+  return `wearing a ${color} kimono with ${pattern}, paired with ${obi}`
+}
+
 function pickHashtags(n: number): string[] {
   const pool = [...HASHTAG_POOL]
   const result: string[] = []
@@ -199,6 +212,7 @@ export async function POST() {
   if (!referenceUrl) return NextResponse.json({ error: 'REFERENCE_IMAGE_URL not set' }, { status: 500 })
 
   // ① 季節コンテキストを先頭に付加したシステムプロンプトを構築
+  const jstMonth = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
   const seasonalContext = getSeasonalContext()
   const fullSystemPrompt = seasonalContext
     ? `${seasonalContext}\n\n${SYSTEM_PROMPT}`
@@ -288,14 +302,16 @@ export async function POST() {
 
   // ⑤ fal.ai で画像生成（120秒タイムアウト付き）
   fal.config({ credentials: falKey })
+  const kimonoHint = pickKimonoHint(jstMonth)
+  const falPrompt = kimonoHint ? `${scenePrompt}, ${kimonoHint}` : scenePrompt
   let falResult: { data: { images: { url: string }[] } }
   try {
-    console.log('[generate/rin] fal.ai 開始 prompt=%j', scenePrompt.slice(0, 120))
+    console.log('[generate/rin] fal.ai 開始 prompt=%j', falPrompt.slice(0, 160))
     falResult = await Promise.race([
       fal.subscribe('fal-ai/instant-character', {
         input: {
           image_url: referenceUrl,
-          prompt: scenePrompt,
+          prompt: falPrompt,
           num_images: 1,
           output_format: 'png',
         },

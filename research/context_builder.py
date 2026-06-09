@@ -111,12 +111,9 @@ def pick_kimono_pattern(month: int | None = None, seed: int | None = None) -> di
 
 
 def build_kimono_prompt(month: int | None = None, seed: int | None = None) -> str:
-    """画像生成プロンプトに足す一文を返す。既存の画像プロンプト末尾に連結するだけ。"""
+    """画像生成プロンプトに足す句を返す。scenePrompt末尾にカンマ連結して使う。"""
     k = pick_kimono_pattern(month, seed)
-    return (
-        f"She is wearing a {k['color']} kimono with a {k['pattern']}, "
-        f"paired with {k['obi']}."
-    )
+    return f"wearing a {k['color']} kimono with {k['pattern']}, paired with {k['obi']}"
 
 
 if __name__ == "__main__":
