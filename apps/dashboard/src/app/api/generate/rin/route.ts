@@ -323,7 +323,7 @@ export async function POST() {
         },
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('fal.ai timeout after 120s')), 120_000)
+        setTimeout(() => reject(new Error('fal.ai timeout after 180s')), 180_000)
       ),
     ]) as { data: { images: { url: string }[] } }
     console.log('[generate/rin] fal.ai 完了 imageUrl=%s', falResult?.data?.images?.[0]?.url?.slice(0, 80))
