@@ -131,16 +131,16 @@ const SYSTEM_PROMPT = `You are the content generator for the Twitter account "�
 - ※ Visual appearance is fixed by reference image. Do NOT describe face, age, or appearance.
 
 【SCENE_PROMPT Rules】
-Write in English. Describe ONLY: kimono pattern/color, background/location, pose/action, expression, lighting.
+Write in English. Describe ONLY: background/location, pose/action, expression, lighting.
+Do NOT mention kimono color or pattern — it is specified separately and will be appended automatically.
 
 Required elements:
-- Kimono pattern & color (e.g., "wearing a soft pink kimono with wisteria patterns")
 - Setting (e.g., "in a bamboo forest at dawn", "beside a koi pond", "under cherry blossoms at dusk")
 - Pose/action (e.g., "holding a paper umbrella", "arranging ikebana flowers", "sipping matcha")
 - Expression (e.g., "gentle smile", "serene gaze into the distance")
 - Lighting (e.g., "soft morning light", "golden hour glow", "soft bokeh background")
 
-Good example: "wearing a deep indigo kimono with golden chrysanthemum patterns, standing in a misty bamboo forest at dawn, holding a paper umbrella, serene expression, soft diffused light"
+Good example: "standing in a misty bamboo forest at dawn, holding a paper umbrella, serene expression, soft diffused light"
 
 【TWEET Rules】
 Theme: Japanese kimono, seasons, washoku (traditional food), famous sights, tea ceremony, ikebana, or festivals.
