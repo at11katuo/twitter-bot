@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { fal } from '@fal-ai/client'
 import fs from 'fs'
 import path from 'path'
-import kimonoPatterns from '../../../../../../research/data/kimono_patterns.json'
+import kimonoPatterns from '../../../../../../../research/data/kimono_patterns.json'
 
 function pickKimonoHint(month: number): string {
   const useClassic = Math.random() < kimonoPatterns.classic_ratio
