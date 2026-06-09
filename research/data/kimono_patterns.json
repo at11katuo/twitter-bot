@@ -24,6 +24,20 @@
     "tortoiseshell (kikko) geometric pattern",
     "classic crane-and-cloud motif"
   ],
+  "seasonal_colors": {
+    "1":  ["pure white", "deep crimson", "antique gold", "midnight navy"],
+    "2":  ["pale blush", "soft ivory", "deep rose", "warm cream"],
+    "3":  ["sakura pink", "pale peach", "fresh mint green", "soft white"],
+    "4":  ["cherry blossom pink", "pale lavender", "fresh spring green", "ivory white"],
+    "5":  ["fresh leaf green", "wisteria purple", "deep emerald", "soft ivory"],
+    "6":  ["stormy blue-grey", "soft indigo", "pale sage green", "misty lavender"],
+    "7":  ["deep indigo", "crisp white", "vermilion red", "pale straw"],
+    "8":  ["deep navy", "summer white", "pale aqua", "warm coral"],
+    "9":  ["midnight blue", "antique gold", "silver grey", "dusty mauve"],
+    "10": ["deep crimson", "amber gold", "warm chestnut", "olive green"],
+    "11": ["scarlet red", "rich gold", "deep umber", "dark pine green"],
+    "12": ["deep navy", "jet black", "snow white", "deep burgundy"]
+  },
   "colors": ["deep indigo", "soft moss green", "muted plum", "charcoal grey", "pale ivory", "twilight purple", "warm terracotta", "dusty rose"],
   "obi": ["a contrasting gold obi", "a deep navy obi", "a soft cream obi", "a russet-red obi"]
 }

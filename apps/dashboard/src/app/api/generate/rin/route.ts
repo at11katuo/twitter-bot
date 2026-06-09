@@ -183,7 +183,9 @@ function pickKimonoHint(month: number): string {
     ? kimonoPatterns.classic
     : (kimonoPatterns.seasonal[key] ?? kimonoPatterns.classic)
   const pattern = pool[Math.floor(Math.random() * pool.length)]
-  const color = kimonoPatterns.colors[Math.floor(Math.random() * kimonoPatterns.colors.length)]
+  const colorKey = key as keyof typeof kimonoPatterns.seasonal_colors
+  const colorPool = kimonoPatterns.seasonal_colors[colorKey] ?? kimonoPatterns.colors
+  const color = colorPool[Math.floor(Math.random() * colorPool.length)]
   const obi = kimonoPatterns.obi[Math.floor(Math.random() * kimonoPatterns.obi.length)]
   return `wearing a ${color} kimono with ${pattern}, paired with ${obi}`
 }

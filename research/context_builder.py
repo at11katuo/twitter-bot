@@ -102,9 +102,10 @@ def pick_kimono_pattern(month: int | None = None, seed: int | None = None) -> di
         seasonal = kp["seasonal"].get(str(month)) or kp["classic"]
         pattern  = rng.choice(seasonal)
 
+    color_pool = kp.get("seasonal_colors", {}).get(str(month)) or kp["colors"]
     return {
         "pattern":    pattern,
-        "color":      rng.choice(kp["colors"]),
+        "color":      rng.choice(color_pool),
         "obi":        rng.choice(kp["obi"]),
         "is_classic": use_classic,
     }
