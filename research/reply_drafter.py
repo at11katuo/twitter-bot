@@ -31,7 +31,6 @@ import requests
 from research.context_builder import (
     build_system_context,
     build_season_block,
-    pick_kimono_pattern,
 )
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -52,9 +51,10 @@ REPLY rules:
 - Do not mention being AI.
 
 IMAGE PROMPT rules (chameleon tactic — blend into their photo):
-- Describe Rin in a kimono in a scene that MATCHES the target's tone/lighting/color
+- Describe a scene for Rin that MATCHES the target's tone/lighting/color palette
   so the image blends naturally with their post (no jarring contrast).
-- Use the kimono pattern/color hint provided, but adjust lighting/mood to the tone.
+- Describe ONLY: setting/location, pose/action, expression, lighting/atmosphere.
+- Do NOT mention kimono color or pattern — it is specified separately.
 - Keep it a concise comma-separated image prompt (for a text-to-image model).
 
 Return ONLY a JSON array. Each item:
@@ -66,25 +66,19 @@ reply_ja is a natural Japanese translation of the reply (for human review only).
 def _build_user_prompt(target_post, author, tone, n, month):
     season = build_season_block(month)
     author = author or "the author"
-    kimono_hints = []
-    for _ in range(n):
-        k = pick_kimono_pattern(month)
-        kimono_hints.append(f"{k['color']} kimono with {k['pattern']}, {k['obi']}")
-    hints_text = "\n".join(f"- option {i+1}: {h}" for i, h in enumerate(kimono_hints))
 
     tone_text = (
-        f"TARGET POST TONE (match this in the image): {tone}"
+        f"TARGET POST TONE (match this in the image scene): {tone}"
         if tone else
-        "TARGET POST TONE: not specified - infer a fitting tone from their post text."
+        "TARGET POST TONE: not specified — infer a fitting tone from their post text."
     )
 
     return (
         f"{_REPLY_RULES}\n\n"
         f"{season}\n\n"
         f"{tone_text}\n\n"
-        f"Kimono hints to use (one per option, match lighting to the tone):\n{hints_text}\n\n"
         f"You are replying to {author}, who posted:\n\"{target_post}\"\n\n"
-        f"Generate {n} options as a JSON array of objects with keys 'reply' and 'image_prompt'."
+        f"Generate {n} options as a JSON array with keys 'reply', 'reply_ja', 'image_prompt'."
     )
 
 

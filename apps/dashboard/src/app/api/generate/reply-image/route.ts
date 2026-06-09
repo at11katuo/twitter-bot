@@ -2,6 +2,21 @@ import { NextResponse } from 'next/server'
 import { fal } from '@fal-ai/client'
 import fs from 'fs'
 import path from 'path'
+import kimonoPatterns from '../../../../../../research/data/kimono_patterns.json'
+
+function pickKimonoHint(month: number): string {
+  const useClassic = Math.random() < kimonoPatterns.classic_ratio
+  const key = String(month) as keyof typeof kimonoPatterns.seasonal
+  const pool = useClassic
+    ? kimonoPatterns.classic
+    : (kimonoPatterns.seasonal[key] ?? kimonoPatterns.classic)
+  const pattern = pool[Math.floor(Math.random() * pool.length)]
+  const colorKey = key as keyof typeof kimonoPatterns.seasonal_colors
+  const colorPool = kimonoPatterns.seasonal_colors[colorKey] ?? kimonoPatterns.colors
+  const color = colorPool[Math.floor(Math.random() * colorPool.length)]
+  const obi = kimonoPatterns.obi[Math.floor(Math.random() * kimonoPatterns.obi.length)]
+  return `wearing a ${color} kimono with ${pattern}, paired with ${obi}`
+}
 
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
@@ -17,16 +32,19 @@ export async function POST(req: Request) {
   const imagePrompt = body.imagePrompt?.trim()
   if (!imagePrompt) return NextResponse.json({ ok: false, error: 'imagePrompt is required' }, { status: 400 })
 
-  // image_prompt には reply_drafter が kimono hint を既に埋め込み済みなので追加しない
+  const jstMonth = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
+  const kimonoHint = pickKimonoHint(jstMonth)
+  const falPrompt = `${imagePrompt}, ${kimonoHint}`
+
   fal.config({ credentials: falKey })
   let falImageUrl: string
   try {
-    console.log('[generate/reply-image] fal.ai 開始 prompt=%j', imagePrompt.slice(0, 160))
+    console.log('[generate/reply-image] fal.ai 開始 prompt=%j', falPrompt.slice(0, 200))
     const falResult = await Promise.race([
       fal.subscribe('fal-ai/instant-character', {
         input: {
           image_url: referenceUrl,
-          prompt: imagePrompt,
+          prompt: falPrompt,
           num_images: 1,
           output_format: 'png',
         },
