@@ -4,6 +4,7 @@ import { fal } from '@fal-ai/client'
 import fs from 'fs'
 import path from 'path'
 import kimonoPatterns from '../../../../../../../research/data/kimono_patterns.json'
+import imageConfig from '../../../../../../../research/data/image_config.json'
 
 // ── 季節カレンダー（season_calendar.json の内容を定数として埋め込み） ──────────
 interface SeasonEntry {
@@ -304,8 +305,11 @@ export async function POST() {
 
   // ⑤ fal.ai で画像生成（120秒タイムアウト付き）
   fal.config({ credentials: falKey })
-  const kimonoHint = pickKimonoHint(jstMonth)
-  const falPrompt = kimonoHint ? `${scenePrompt}, ${kimonoHint}` : scenePrompt
+  const kimonoHint  = pickKimonoHint(jstMonth)
+  const basePrompt  = kimonoHint ? `${scenePrompt}, ${kimonoHint}` : scenePrompt
+  const falPrompt   = imageConfig.quality_suffix
+    ? `${basePrompt}, ${imageConfig.quality_suffix}`
+    : basePrompt
   let falResult: { data: { images: { url: string }[] } }
   try {
     console.log('[generate/rin] fal.ai 開始 prompt=%j', falPrompt.slice(0, 160))
@@ -314,6 +318,7 @@ export async function POST() {
         input: {
           image_url: referenceUrl,
           prompt: falPrompt,
+          ...(imageConfig.negative_prompt ? { negative_prompt: imageConfig.negative_prompt } : {}),
           num_images: 1,
           output_format: 'png',
         },

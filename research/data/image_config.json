@@ -1,0 +1,5 @@
+{
+  "_comment": "画像品質調整。quality_suffixを変えるだけで全パス（generator.py / route.ts）に反映。negative_promptはinstant-character対応。",
+  "quality_suffix": "soft natural light, shallow depth of field, gentle film grain, realistic skin texture, photographic, muted emotional tones",
+  "negative_prompt": "plastic skin, oversaturated, 3d render, glossy"
+}

@@ -3,6 +3,7 @@ import { fal } from '@fal-ai/client'
 import fs from 'fs'
 import path from 'path'
 import kimonoPatterns from '../../../../../../../research/data/kimono_patterns.json'
+import imageConfig from '../../../../../../../research/data/image_config.json'
 
 function pickKimonoHint(month: number): string {
   const useClassic = Math.random() < kimonoPatterns.classic_ratio
@@ -32,9 +33,12 @@ export async function POST(req: Request) {
   const imagePrompt = body.imagePrompt?.trim()
   if (!imagePrompt) return NextResponse.json({ ok: false, error: 'imagePrompt is required' }, { status: 400 })
 
-  const jstMonth = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
+  const jstMonth   = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
   const kimonoHint = pickKimonoHint(jstMonth)
-  const falPrompt = `${imagePrompt}, ${kimonoHint}`
+  const basePrompt = `${imagePrompt}, ${kimonoHint}`
+  const falPrompt  = imageConfig.quality_suffix
+    ? `${basePrompt}, ${imageConfig.quality_suffix}`
+    : basePrompt
 
   fal.config({ credentials: falKey })
   let falImageUrl: string
@@ -45,6 +49,7 @@ export async function POST(req: Request) {
         input: {
           image_url: referenceUrl,
           prompt: falPrompt,
+          ...(imageConfig.negative_prompt ? { negative_prompt: imageConfig.negative_prompt } : {}),
           num_images: 1,
           output_format: 'png',
         },

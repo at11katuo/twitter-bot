@@ -34,6 +34,19 @@ except ImportError:
     def build_kimono_prompt(**_): return ""
     def get_trend_context(): return ""
 
+# 画像品質サフィックス（research/data/image_config.json が単一定義元）
+def _load_image_config() -> dict:
+    _cfg_path = Path(__file__).parent / "research" / "data" / "image_config.json"
+    try:
+        with open(_cfg_path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"quality_suffix": "", "negative_prompt": ""}
+
+_IMAGE_CFG = _load_image_config()
+QUALITY_SUFFIX   = _IMAGE_CFG.get("quality_suffix", "")
+NEGATIVE_PROMPT  = _IMAGE_CFG.get("negative_prompt", "")
+
 load_dotenv()
 
 GEMINI_API_KEY       = os.environ.get("GEMINI_API_KEY", "")
@@ -233,15 +246,15 @@ def generate_fal_image(scene_prompt: str, reference_url: str) -> str:
     """consistent-character でリファレンス人物 + シーンの画像URLを返す。"""
     print(f"[画像生成] モデル: {FAL_MODEL_CHARACTER}")
     print(f"[シーン]   {scene_prompt[:80]}...")
-    result = fal_client.run(
-        FAL_MODEL_CHARACTER,
-        arguments={
-            "image_url": reference_url,
-            "prompt": scene_prompt,
-            "num_images": 1,
-            "output_format": "png",
-        },
-    )
+    args: dict = {
+        "image_url": reference_url,
+        "prompt": scene_prompt,
+        "num_images": 1,
+        "output_format": "png",
+    }
+    if NEGATIVE_PROMPT:
+        args["negative_prompt"] = NEGATIVE_PROMPT
+    result = fal_client.run(FAL_MODEL_CHARACTER, arguments=args)
     return result["images"][0]["url"]
 
 
@@ -323,6 +336,8 @@ def run(theme: str = "", count: int = 1) -> None:
         post_id = create_post(tweet_text, scene_prompt)
         kimono_hint = build_kimono_prompt()
         fal_prompt  = f"{scene_prompt}, {kimono_hint}" if kimono_hint else scene_prompt
+        if QUALITY_SUFFIX:
+            fal_prompt = f"{fal_prompt}, {QUALITY_SUFFIX}"
         image_url = generate_fal_image(fal_prompt, reference_url)
         upload_image_to_dashboard(post_id, image_url)
 
