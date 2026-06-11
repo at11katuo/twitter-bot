@@ -1,5 +1,5 @@
 {
   "_comment": "画像品質調整。quality_suffixを変えるだけで全パス（generator.py / route.ts）に反映。negative_promptはinstant-character対応。",
   "quality_suffix": "shot on 35mm film, Kodak Portra 400, analog film grain, shallow depth of field, natural bokeh, soft natural window light, golden hour, moody atmosphere, cinematic color grading, muted emotional tones, realistic skin texture, photographic",
-  "negative_prompt": "plastic skin, airbrushed, oversaturated, digital art, 3d render, cgi, overly smooth, perfect symmetry, glossy"
+  "negative_prompt": "plastic skin, airbrushed, oversaturated, digital art, 3d render, cgi, overly smooth, perfect symmetry, glossy, western clothes, casual clothes, modern dress, shirt, jeans, western outfit, t-shirt, suit"
 }

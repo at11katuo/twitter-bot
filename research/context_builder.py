@@ -114,7 +114,7 @@ def pick_kimono_pattern(month: int | None = None, seed: int | None = None) -> di
 def build_kimono_prompt(month: int | None = None, seed: int | None = None) -> str:
     """画像生成プロンプトの先頭に置く色強調句を返す。参照画像のピンク着物に上書きするため NOT pink を明示。"""
     k = pick_kimono_pattern(month, seed)
-    return f"she is ONLY wearing a {k['color']} colored kimono, NOT pink, with {k['pattern']}, paired with {k['obi']}"
+    return f"she is wearing a traditional Japanese kimono (着物), {k['color']} colored with wide kimono sleeves and formal Japanese draping, {k['pattern']}, paired with {k['obi']} obi sash, NOT western clothes"
 
 
 if __name__ == "__main__":
