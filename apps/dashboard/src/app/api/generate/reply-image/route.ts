@@ -16,7 +16,7 @@ function pickKimonoHint(month: number): string {
   const colorPool = kimonoPatterns.seasonal_colors[colorKey] ?? kimonoPatterns.colors
   const color = colorPool[Math.floor(Math.random() * colorPool.length)]
   const obi = kimonoPatterns.obi[Math.floor(Math.random() * kimonoPatterns.obi.length)]
-  return `wearing a ${color} kimono with ${pattern}, paired with ${obi}`
+  return `she is ONLY wearing a ${color} colored kimono, NOT pink, with ${pattern}, paired with ${obi}`
 }
 
 export const maxDuration = 60
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
   const jstMonth   = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
   const kimonoHint = pickKimonoHint(jstMonth)
-  const basePrompt = `${imagePrompt}, ${kimonoHint}`
+  const basePrompt = `${kimonoHint}, ${imagePrompt}`
   const falPrompt  = imageConfig.quality_suffix
     ? `${basePrompt}, ${imageConfig.quality_suffix}`
     : basePrompt
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   fal.config({ credentials: falKey })
   let falImageUrl: string
   try {
-    console.log('[generate/reply-image] fal.ai 開始 prompt=%j', falPrompt.slice(0, 200))
+    console.log('[generate/reply-image] fal.ai 開始 prompt=%j', falPrompt)
     const falResult = await Promise.race([
       fal.subscribe('fal-ai/instant-character', {
         input: {

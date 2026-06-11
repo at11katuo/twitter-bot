@@ -72,11 +72,11 @@ REFERENCE_IMAGE_PATH = Path("reference.png")
 REFERENCE_URL_CACHE  = Path("reference_url.txt")
 
 REFERENCE_PROMPT = (
-    "A photorealistic portrait of a beautiful 20-year-old Japanese woman "
-    "with a soft rounded jawline and gentle oval face shape, "
-    "wearing an elegant floral kimono, standing in a traditional Japanese garden, "
-    "soft natural sunlight, shot on 35mm lens, highly detailed, 8k, "
-    "serene expression, looking at camera, upper body shot"
+    "A photorealistic close-up portrait of a beautiful 20-year-old Japanese woman, "
+    "face and neck only, no clothing visible in frame, "
+    "with a soft rounded jawline and gentle oval face shape, dark hair pinned up, "
+    "soft studio lighting, neutral grey background, shot on 35mm lens, "
+    "highly detailed, 8k, serene expression, looking at camera"
 )
 
 # ------------------------------------------------------------------ #
@@ -335,9 +335,10 @@ def run(theme: str = "", count: int = 1) -> None:
 
         post_id = create_post(tweet_text, scene_prompt)
         kimono_hint = build_kimono_prompt()
-        fal_prompt  = f"{scene_prompt}, {kimono_hint}" if kimono_hint else scene_prompt
+        fal_prompt  = f"{kimono_hint}, {scene_prompt}" if kimono_hint else scene_prompt
         if QUALITY_SUFFIX:
             fal_prompt = f"{fal_prompt}, {QUALITY_SUFFIX}"
+        print(f"[falPrompt] {fal_prompt}")
         image_url = generate_fal_image(fal_prompt, reference_url)
         upload_image_to_dashboard(post_id, image_url)
 
