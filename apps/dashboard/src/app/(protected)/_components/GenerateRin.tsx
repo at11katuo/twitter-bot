@@ -15,9 +15,11 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
   const router = useRouter()
   const [jobs, setJobs] = useState<GenerationJob[]>([])
   const [globalError, setGlobalError] = useState('')
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollingRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pendingCount = useRef(0)  // 未完了リクエスト数
 
   const hasActiveJobs = jobs.some(j => j.status === 'pending' || j.status === 'generating')
+  const isGenerating  = pendingCount.current > 0 || hasActiveJobs
 
   async function fetchJobs(): Promise<GenerationJob[]> {
     try {
@@ -31,41 +33,71 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
     return []
   }
 
+  // ポーリング: 5秒ごとにジョブ状態を取得しページを更新
   function startPolling() {
     if (pollingRef.current) return
     pollingRef.current = setInterval(async () => {
       const data = await fetchJobs()
+      router.refresh()  // サーバーコンポーネント（投稿リスト）も再取得
+
       const stillActive = data.some(j => j.status === 'pending' || j.status === 'generating')
-      if (!stillActive) {
+      if (!stillActive && pendingCount.current === 0) {
         clearInterval(pollingRef.current!)
         pollingRef.current = null
-        router.refresh()
       }
-    }, 3000)
+    }, 5000)
+  }
+
+  function stopPolling() {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
   }
 
   useEffect(() => {
     fetchJobs()
-    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
+    return stopPolling
   }, [])
 
+  // fire-and-forget: レスポンスを待たずにポーリング開始
   async function generateOne(): Promise<boolean> {
-    const res = await fetch('/api/generate/rin', { method: 'POST' })
+    pendingCount.current += 1
+
+    // リクエスト送信（await しない）
+    const resPromise = fetch('/api/generate/rin', { method: 'POST' })
+
+    // ルートがジョブを作成するまで少し待ってからポーリング開始
+    await new Promise(r => setTimeout(r, 800))
     await fetchJobs()
     startPolling()
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({})) as { error?: string }
-      setGlobalError(data.error ?? '生成に失敗しました')
-      return false
+
+    // レスポンスを待つ（90秒程度かかる）
+    let ok = false
+    try {
+      const res = await resPromise
+      const data = await res.json().catch(() => ({})) as { ok?: boolean; error?: string }
+      if (!res.ok) setGlobalError(data.error ?? '生成に失敗しました')
+      else ok = true
+    } catch {
+      setGlobalError('通信エラー（タイムアウトの可能性）')
+    } finally {
+      pendingCount.current -= 1
+      await fetchJobs()
     }
-    return true
+    return ok
   }
 
   async function handleGenerate(count: number) {
     setGlobalError('')
     for (let i = 0; i < count; i++) {
-      const ok = await generateOne()
-      if (!ok) break
+      await generateOne()
+    }
+    // 全ジョブ完了後に最終ページ更新
+    if (pendingCount.current === 0) {
+      await fetchJobs()
+      router.refresh()
+      stopPolling()
     }
   }
 
@@ -73,10 +105,10 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
     ? (referenceUrl.split('/').pop() ?? referenceUrl.slice(-20))
     : null
 
-  function statusIcon(status: GenerationJob['status']) {
-    if (status === 'pending')    return '⏳'
-    if (status === 'generating') return '🔄'
-    if (status === 'done')       return '✅'
+  function statusIcon(s: GenerationJob['status']) {
+    if (s === 'pending')    return '⏳'
+    if (s === 'generating') return '🔄'
+    if (s === 'done')       return '✅'
     return '❌'
   }
 
@@ -85,6 +117,9 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
       <div className="flex items-center gap-2">
         <span className="text-lg">🌸</span>
         <h2 className="text-sm font-semibold text-pink-200">凛（Rin）生成</h2>
+        {isGenerating && (
+          <span className="ml-auto text-xs text-blue-400 animate-pulse">● 処理中</span>
+        )}
       </div>
 
       {/* 参照画像インジケーター */}
@@ -111,21 +146,21 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
       <div className="grid grid-cols-3 gap-2">
         <button
           onClick={() => handleGenerate(1)}
-          disabled={hasActiveJobs}
+          disabled={isGenerating}
           className="h-11 rounded-xl bg-pink-900/50 active:bg-pink-800/70 disabled:opacity-40 text-xs font-semibold text-pink-200 touch-manipulation"
         >
-          {hasActiveJobs ? '生成中...' : '＋1件'}
+          {isGenerating ? '生成中...' : '＋1件'}
         </button>
         <button
           onClick={() => handleGenerate(2)}
-          disabled={hasActiveJobs}
+          disabled={isGenerating}
           className="h-11 rounded-xl bg-pink-900/50 active:bg-pink-800/70 disabled:opacity-40 text-xs font-semibold text-pink-200 touch-manipulation"
         >
           今日分<br /><span className="text-xs font-normal opacity-70">2件</span>
         </button>
         <button
           onClick={() => handleGenerate(14)}
-          disabled={hasActiveJobs}
+          disabled={isGenerating}
           className="h-11 rounded-xl bg-pink-700/60 active:bg-pink-700/80 disabled:opacity-40 text-xs font-semibold text-pink-100 touch-manipulation"
         >
           7日分<br /><span className="text-xs font-normal opacity-70">14件</span>
@@ -143,7 +178,7 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
               <span className="flex-shrink-0 mt-0.5">{statusIcon(j.status)}</span>
               <div className="min-w-0 flex-1">
                 {j.status === 'pending'    && <span className="text-slate-400">準備中</span>}
-                {j.status === 'generating' && <span className="text-blue-400">生成中...</span>}
+                {j.status === 'generating' && <span className="text-blue-400 animate-pulse">生成中...</span>}
                 {j.status === 'done'       && <span className="text-green-400">完了</span>}
                 {j.status === 'failed'     && (
                   <span className="text-red-400 break-words">失敗: {j.errorMessage?.slice(0, 80) ?? 'unknown error'}</span>
@@ -152,7 +187,7 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
               {j.status === 'failed' && (
                 <button
                   onClick={() => handleGenerate(1)}
-                  disabled={hasActiveJobs}
+                  disabled={isGenerating}
                   className="flex-shrink-0 text-xs text-pink-400 underline hover:text-pink-300 disabled:opacity-40"
                 >
                   再試行
