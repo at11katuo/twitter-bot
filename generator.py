@@ -76,11 +76,16 @@ REFERENCE_IMAGE_PATH = Path("reference.png")
 REFERENCE_URL_CACHE  = Path("reference_url.txt")
 
 REFERENCE_PROMPT = (
-    "A photorealistic close-up portrait of a beautiful 20-year-old Japanese woman, "
-    "face and neck only, no clothing visible in frame, "
-    "with a soft rounded jawline and gentle oval face shape, dark hair pinned up, "
-    "soft studio lighting, neutral grey background, shot on 35mm lens, "
-    "highly detailed, 8k, serene expression, looking at camera"
+    "A photorealistic full-body portrait of a beautiful 20-year-old Japanese woman, "
+    "wearing a traditional Japanese kimono, plain undyed off-white silk fabric, "
+    "completely solid neutral color with absolutely no pattern, "
+    "properly fitted kitsuke with neat firmly closed collar, "
+    "layered white han-eri (under-collar) clearly visible at neckline, "
+    "fine matte silk fabric with subtle natural woven texture, no sheen, no gloss, not shiny, "
+    "elegant upright dignified posture, hands folded gracefully, "
+    "obi sash tied neatly at waist, "
+    "soft studio lighting, neutral grey background, "
+    "shot on 35mm lens, highly detailed, 8k, serene expression"
 )
 
 # ------------------------------------------------------------------ #
