@@ -17,3 +17,4 @@ dist/
 reference.png
 reference_url.txt
 auth_state.json
+compare_output/
