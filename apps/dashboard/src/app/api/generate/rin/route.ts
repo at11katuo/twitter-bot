@@ -316,6 +316,8 @@ export async function POST() {
     : basePrompt
   let falResult: { data: { images: { url: string }[] } }
   try {
+    console.log('[generate/rin] 参照画像 referenceUrl=%s', referenceUrl.split('/').pop())
+    console.log('[generate/rin] kimonoHint=%s', kimonoHint)
     console.log('[generate/rin] fal.ai 開始 prompt=%j', falPrompt)
     falResult = await Promise.race([
       fal.subscribe('fal-ai/instant-character', {

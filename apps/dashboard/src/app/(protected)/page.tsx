@@ -20,6 +20,8 @@ function formatDateLabel(dateKey: string): string {
 }
 
 export default async function HomePage() {
+  const referenceUrl = process.env.REFERENCE_IMAGE_URL ?? ''
+
   const [posts, deletedPosts] = await Promise.all([
     prisma.post.findMany({
       where: { deletedAt: null },
@@ -45,7 +47,7 @@ export default async function HomePage() {
 
   const postsPanel = (
     <div className="space-y-4">
-      <GenerateRin />
+      <GenerateRin referenceUrl={referenceUrl} />
 
       {sortedDates.length === 0 ? (
         <p className="text-center text-slate-500 py-16 text-sm">

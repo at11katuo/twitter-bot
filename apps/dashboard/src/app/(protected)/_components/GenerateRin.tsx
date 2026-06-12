@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function GenerateRin() {
+export default function GenerateRin({ referenceUrl }: { referenceUrl?: string }) {
   const router = useRouter()
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState('')
@@ -31,6 +31,7 @@ export default function GenerateRin() {
   }
 
   const isGenerating = progress !== null
+  const refFilename = referenceUrl ? referenceUrl.split('/').pop()?.split('_').slice(-1)[0] ?? referenceUrl.slice(-20) : null
 
   return (
     <div className="rounded-2xl border border-pink-900/40 bg-indigo-950/60 p-4 space-y-3">
@@ -38,6 +39,26 @@ export default function GenerateRin() {
         <span className="text-lg">🌸</span>
         <h2 className="text-sm font-semibold text-pink-200">凛（Rin）生成</h2>
       </div>
+
+      {/* 参照画像インジケーター */}
+      {referenceUrl ? (
+        <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-900/60 border border-slate-700/40">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={referenceUrl}
+            alt="参照画像"
+            className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border border-slate-600/40"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-slate-400 mb-0.5">現在の参照画像</p>
+            <p className="text-xs text-slate-500 truncate font-mono">{refFilename}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="p-2 rounded-xl bg-red-900/20 border border-red-700/40">
+          <p className="text-xs text-red-400">⚠️ REFERENCE_IMAGE_URL 未設定</p>
+        </div>
+      )}
 
       {isGenerating ? (
         <div className="space-y-2">
