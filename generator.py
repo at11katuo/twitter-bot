@@ -47,6 +47,7 @@ def _load_image_config() -> dict:
 
 _IMAGE_CFG = _load_image_config()
 QUALITY_SUFFIX   = _IMAGE_CFG.get("quality_suffix", "")
+ELEGANCE_BLOCK   = _IMAGE_CFG.get("elegance_block", "")
 NEGATIVE_PROMPT  = _IMAGE_CFG.get("negative_prompt", "")
 FILM_PRESET      = os.environ.get("FILM_PRESET", "subtle")
 
@@ -113,6 +114,8 @@ Required elements:
 - Lighting (e.g., "soft morning light", "golden hour glow", "soft bokeh background")
 
 Good example: "standing in a misty bamboo forest at dawn, holding a paper umbrella, serene expression, soft diffused light"
+
+Refined settings ONLY: traditional tea house interior, moss garden, machiya (townhouse) corridor, temple stone passage, ryokan engawa (veranda). Do NOT use busy streets, modern buildings, crowded spaces, clutter, or contemporary environments.
 
 【TWEET Rules】
 Theme: Japanese kimono, seasons, washoku (traditional food), famous sights, tea ceremony, ikebana, or festivals.
@@ -341,7 +344,8 @@ def run(theme: str = "", count: int = 1) -> None:
 
         post_id = create_post(tweet_text, scene_prompt)
         kimono_hint = build_kimono_prompt()
-        fal_prompt  = f"{kimono_hint}, {scene_prompt}" if kimono_hint else scene_prompt
+        parts = [p for p in [kimono_hint, ELEGANCE_BLOCK, scene_prompt] if p]
+        fal_prompt  = ", ".join(parts)
         if QUALITY_SUFFIX:
             fal_prompt = f"{fal_prompt}, {QUALITY_SUFFIX}"
         print(f"[falPrompt] {fal_prompt}")

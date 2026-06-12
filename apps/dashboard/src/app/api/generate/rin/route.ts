@@ -143,6 +143,8 @@ Required elements:
 
 Good example: "standing in a misty bamboo forest at dawn, holding a paper umbrella, serene expression, soft diffused light"
 
+Refined settings ONLY: traditional tea house interior, moss garden, machiya (townhouse) corridor, temple stone passage, ryokan engawa (veranda). Do NOT use busy streets, modern buildings, crowded spaces, clutter, or contemporary environments.
+
 【TWEET Rules】
 Theme: Japanese kimono, seasons, washoku (traditional food), famous sights, tea ceremony, ikebana, or festivals.
 Tone: 凛 warmly addresses international followers, elegantly sharing a piece of Japan.
@@ -305,9 +307,11 @@ export async function POST() {
 
   // ⑤ fal.ai で画像生成（120秒タイムアウト付き）
   fal.config({ credentials: falKey })
-  const kimonoHint  = pickKimonoHint(jstMonth)
-  const basePrompt  = kimonoHint ? `${kimonoHint}, ${scenePrompt}` : scenePrompt
-  const falPrompt   = imageConfig.quality_suffix
+  const kimonoHint    = pickKimonoHint(jstMonth)
+  const eleganceBlock = (imageConfig as Record<string, string>).elegance_block ?? ''
+  const parts         = [kimonoHint, eleganceBlock, scenePrompt].filter(s => s !== '')
+  const basePrompt    = parts.join(', ')
+  const falPrompt     = imageConfig.quality_suffix
     ? `${basePrompt}, ${imageConfig.quality_suffix}`
     : basePrompt
   let falResult: { data: { images: { url: string }[] } }

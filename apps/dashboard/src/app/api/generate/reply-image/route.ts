@@ -33,10 +33,12 @@ export async function POST(req: Request) {
   const imagePrompt = body.imagePrompt?.trim()
   if (!imagePrompt) return NextResponse.json({ ok: false, error: 'imagePrompt is required' }, { status: 400 })
 
-  const jstMonth   = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
-  const kimonoHint = pickKimonoHint(jstMonth)
-  const basePrompt = `${kimonoHint}, ${imagePrompt}`
-  const falPrompt  = imageConfig.quality_suffix
+  const jstMonth      = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
+  const kimonoHint    = pickKimonoHint(jstMonth)
+  const eleganceBlock = (imageConfig as Record<string, string>).elegance_block ?? ''
+  const parts         = [kimonoHint, eleganceBlock, imagePrompt].filter(s => s !== '')
+  const basePrompt    = parts.join(', ')
+  const falPrompt     = imageConfig.quality_suffix
     ? `${basePrompt}, ${imageConfig.quality_suffix}`
     : basePrompt
 
