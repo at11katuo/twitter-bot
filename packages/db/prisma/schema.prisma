@@ -18,6 +18,15 @@ model LatestTrend {
   @@unique([month, date])
 }
 
+model GenerationJob {
+  id           String   @id @default(cuid())
+  status       String   @default("pending") // pending | generating | done | failed
+  errorMessage String?
+  postId       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 // 1件 = 1投稿スロット（朝/昼/夜）
 model Post {
   id          String    @id @default(cuid())

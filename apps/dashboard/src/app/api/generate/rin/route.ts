@@ -204,7 +204,7 @@ function pickHashtags(n: number): string[] {
 }
 
 // ── エクスポート ──────────────────────────────────────────────────────────────
-export const maxDuration = 60
+export const maxDuration = 300
 export const dynamic = 'force-dynamic'
 
 export async function POST() {
@@ -216,6 +216,10 @@ export async function POST() {
   if (!falKey)       return NextResponse.json({ error: 'FAL_KEY not set' }, { status: 500 })
   if (!referenceUrl) return NextResponse.json({ error: 'REFERENCE_IMAGE_URL not set' }, { status: 500 })
 
+  // ジョブ作成（pending）
+  const job = await prisma.generationJob.create({ data: {} })
+  const jobId = job.id
+
   // ① 季節コンテキストを先頭に付加したシステムプロンプトを構築
   const jstMonth = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
   const seasonalContext = getSeasonalContext()
@@ -223,73 +227,78 @@ export async function POST() {
     ? `${seasonalContext}\n\n${SYSTEM_PROMPT}`
     : SYSTEM_PROMPT
 
-  // ② Gemini 1.5 Flash でシーン＋ツイート文生成
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: fullSystemPrompt }] },
-        contents: [{ role: 'user', parts: [{ text: 'Generate one post for Rin based on the current season.' }] }],
-        generationConfig: { maxOutputTokens: 2048 },
-      }),
+  // ② Gemini でシーン＋ツイート文生成（最大2回）
+  await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'generating' } })
+
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`
+  const geminiBody = JSON.stringify({
+    system_instruction: { parts: [{ text: fullSystemPrompt }] },
+    contents: [{ role: 'user', parts: [{ text: 'Generate one post for Rin based on the current season.' }] }],
+    generationConfig: { maxOutputTokens: 2048 },
+  })
+
+  let scenePrompt = ''
+  let tweetText = ''
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) console.log('[generate/rin] Gemini パース失敗、リトライ中...')
+
+    const geminiRes = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiBody })
+
+    if (!geminiRes.ok) {
+      const errBody = await geminiRes.text()
+      console.error('[generate/rin] Gemini API error:', errBody)
+      await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `Gemini API error: ${errBody.slice(0, 200)}` } })
+      return NextResponse.json({ error: 'Gemini API error', detail: errBody, jobId }, { status: 500 })
     }
-  )
 
-  if (!geminiRes.ok) {
-    const errBody = await geminiRes.text()
-    console.error('[generate/rin] Gemini API error:', errBody)
-    return NextResponse.json({ error: 'Gemini API error', detail: errBody }, { status: 500 })
+    const geminiData = await geminiRes.json() as {
+      candidates: Array<{
+        content: { parts: Array<{ text?: string; thought?: boolean }> }
+        finishReason?: string
+      }>
+    }
+
+    const geminiParts = geminiData.candidates?.[0]?.content?.parts ?? []
+    const rawText = geminiParts
+      .filter((p) => !p.thought && typeof p.text === 'string')
+      .map((p) => p.text!)
+      .join('')
+      .trim()
+
+    const finishReason = geminiData.candidates?.[0]?.finishReason
+    console.log('[generate/rin] finishReason=%s rawLen=%d rawText=%j', finishReason, rawText.length, rawText.slice(0, 300))
+    if (finishReason === 'MAX_TOKENS') {
+      console.error('[generate/rin] output truncated by MAX_TOKENS — increase maxOutputTokens')
+      await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: 'AI output truncated (MAX_TOKENS)' } })
+      return NextResponse.json({ error: 'AI output truncated (MAX_TOKENS)', raw: rawText, jobId }, { status: 500 })
+    }
+
+    const cleanText = rawText
+      .replace(/^```[^\n]*\n?/m, '')
+      .replace(/\n?```\s*$/m, '')
+      .trim()
+
+    const sceneMatch = cleanText.match(/SCENE_PROMPT:\s*([^\n]+)/)
+    const tweetMatch = cleanText.match(/TWEET:\s*([\s\S]+)/)
+
+    if (!sceneMatch || !tweetMatch) {
+      if (attempt === 0) continue
+      console.error('[generate/rin] parse failed after retry. cleanText=%j', cleanText)
+      await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: 'AI output format error after retry' } })
+      return NextResponse.json({ error: 'AI output format error', raw: cleanText, jobId }, { status: 500 })
+    }
+
+    scenePrompt = sceneMatch[1].trim()
+    const tweetBodyLines = tweetMatch[1]
+      .trim()
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('#'))
+    const tweetBody = tweetBodyLines.join('\n').trim()
+    const hashtags = pickHashtags(4).join('\n')
+    tweetText = `${tweetBody}\n${hashtags}`
+    break
   }
-
-  const geminiData = await geminiRes.json() as {
-    candidates: Array<{
-      content: { parts: Array<{ text?: string; thought?: boolean }> }
-      finishReason?: string
-    }>
-  }
-
-  // 思考パーツ（thought: true）を除外し、残りのテキストを結合
-  const parts = geminiData.candidates?.[0]?.content?.parts ?? []
-  const rawText = parts
-    .filter((p) => !p.thought && typeof p.text === 'string')
-    .map((p) => p.text!)
-    .join('')
-    .trim()
-
-  const finishReason = geminiData.candidates?.[0]?.finishReason
-  console.log('[generate/rin] finishReason=%s rawLen=%d rawText=%j', finishReason, rawText.length, rawText.slice(0, 300))
-  if (finishReason === 'MAX_TOKENS') {
-    console.error('[generate/rin] output truncated by MAX_TOKENS — increase maxOutputTokens')
-    return NextResponse.json({ error: 'AI output truncated (MAX_TOKENS)', raw: rawText }, { status: 500 })
-  }
-
-  // マークダウンのコードブロックを除去
-  const cleanText = rawText
-    .replace(/^```[^\n]*\n?/m, '')
-    .replace(/\n?```\s*$/m, '')
-    .trim()
-
-  // ③ 出力パース（複数行の SCENE_PROMPT も許容するため .+ を [^\n]+ に）
-  const sceneMatch = cleanText.match(/SCENE_PROMPT:\s*([^\n]+)/)
-  const tweetMatch = cleanText.match(/TWEET:\s*([\s\S]+)/)
-
-  if (!sceneMatch || !tweetMatch) {
-    console.error('[generate/rin] parse failed. cleanText=%j', cleanText)
-    return NextResponse.json({ error: 'AI output format error', raw: cleanText }, { status: 500 })
-  }
-
-  const scenePrompt = sceneMatch[1].trim()
-
-  // # で始まる行を除去し、ハッシュタグをランダムに4個付加
-  const tweetBodyLines = tweetMatch[1]
-    .trim()
-    .split('\n')
-    .filter((line) => !line.trimStart().startsWith('#'))
-  const tweetBody = tweetBodyLines.join('\n').trim()
-  const hashtags = pickHashtags(4).join('\n')
-  const tweetText = `${tweetBody}\n${hashtags}`
 
   // ④ DB に下書き作成
   const post = await prisma.post.create({
@@ -340,7 +349,8 @@ export async function POST() {
     console.log('[generate/rin] fal.ai 完了 imageUrl=%s', falResult?.data?.images?.[0]?.url?.slice(0, 80))
   } catch (falErr) {
     console.error('[generate/rin] fal.ai エラー:', falErr)
-    return NextResponse.json({ error: 'fal.ai image generation failed', detail: String(falErr), id: post.id }, { status: 500 })
+    await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `fal.ai: ${String(falErr).slice(0, 200)}` } })
+    return NextResponse.json({ error: 'fal.ai image generation failed', detail: String(falErr), id: post.id, jobId }, { status: 500 })
   }
 
   const imageUrl = falResult.data.images[0].url
@@ -352,7 +362,8 @@ export async function POST() {
     imgBuf = Buffer.from(await imgRes.arrayBuffer())
   } catch (dlErr) {
     console.error('[generate/rin] 画像DLエラー:', dlErr)
-    return NextResponse.json({ error: 'image download failed', detail: String(dlErr), id: post.id }, { status: 500 })
+    await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `image download: ${String(dlErr).slice(0, 200)}` } })
+    return NextResponse.json({ error: 'image download failed', detail: String(dlErr), id: post.id, jobId }, { status: 500 })
   }
 
   // ⑦ フィルムグレード（research-api 経由）
@@ -386,5 +397,6 @@ export async function POST() {
     data: { imagePath: filename, mediaType: 'image' },
   })
 
-  return NextResponse.json({ ok: true, id: post.id })
+  await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'done', postId: post.id } })
+  return NextResponse.json({ ok: true, id: post.id, jobId })
 }

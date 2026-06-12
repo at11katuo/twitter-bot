@@ -1,37 +1,84 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+
+interface GenerationJob {
+  id: string
+  status: 'pending' | 'generating' | 'done' | 'failed'
+  errorMessage: string | null
+  postId: string | null
+  createdAt: string
+}
 
 export default function GenerateRin({ referenceUrl }: { referenceUrl?: string }) {
   const router = useRouter()
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
-  const [error, setError] = useState('')
+  const [jobs, setJobs] = useState<GenerationJob[]>([])
+  const [globalError, setGlobalError] = useState('')
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const hasActiveJobs = jobs.some(j => j.status === 'pending' || j.status === 'generating')
+
+  async function fetchJobs(): Promise<GenerationJob[]> {
+    try {
+      const res = await fetch('/api/jobs')
+      if (res.ok) {
+        const data = await res.json() as GenerationJob[]
+        setJobs(data)
+        return data
+      }
+    } catch { /* ignore */ }
+    return []
+  }
+
+  function startPolling() {
+    if (pollingRef.current) return
+    pollingRef.current = setInterval(async () => {
+      const data = await fetchJobs()
+      const stillActive = data.some(j => j.status === 'pending' || j.status === 'generating')
+      if (!stillActive) {
+        clearInterval(pollingRef.current!)
+        pollingRef.current = null
+        router.refresh()
+      }
+    }, 3000)
+  }
+
+  useEffect(() => {
+    fetchJobs()
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
+  }, [])
 
   async function generateOne(): Promise<boolean> {
     const res = await fetch('/api/generate/rin', { method: 'POST' })
+    await fetchJobs()
+    startPolling()
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      setError(data.error ?? '生成に失敗しました')
+      const data = await res.json().catch(() => ({})) as { error?: string }
+      setGlobalError(data.error ?? '生成に失敗しました')
       return false
     }
     return true
   }
 
   async function handleGenerate(count: number) {
-    setError('')
-    setProgress({ done: 0, total: count })
+    setGlobalError('')
     for (let i = 0; i < count; i++) {
       const ok = await generateOne()
       if (!ok) break
-      setProgress({ done: i + 1, total: count })
     }
-    setProgress(null)
-    router.refresh()
   }
 
-  const isGenerating = progress !== null
-  const refFilename = referenceUrl ? referenceUrl.split('/').pop()?.split('_').slice(-1)[0] ?? referenceUrl.slice(-20) : null
+  const refFilename = referenceUrl
+    ? (referenceUrl.split('/').pop() ?? referenceUrl.slice(-20))
+    : null
+
+  function statusIcon(status: GenerationJob['status']) {
+    if (status === 'pending')    return '⏳'
+    if (status === 'generating') return '🔄'
+    if (status === 'done')       return '✅'
+    return '❌'
+  }
 
   return (
     <div className="rounded-2xl border border-pink-900/40 bg-indigo-950/60 p-4 space-y-3">
@@ -60,44 +107,61 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
         </div>
       )}
 
-      {isGenerating ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>⏳ 生成中... ({progress.done}/{progress.total})</span>
-            <span>{Math.round((progress.done / progress.total) * 100)}%</span>
-          </div>
-          <div className="w-full bg-slate-800 rounded-full h-2">
-            <div
-              className="bg-pink-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(progress.done / progress.total) * 100}%` }}
-            />
-          </div>
-          <p className="text-xs text-slate-500 text-center">fal.ai で画像生成中です。しばらくお待ちください。</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => handleGenerate(1)}
-            className="h-11 rounded-xl bg-pink-900/50 active:bg-pink-800/70 text-xs font-semibold text-pink-200 touch-manipulation"
-          >
-            ＋1件
-          </button>
-          <button
-            onClick={() => handleGenerate(2)}
-            className="h-11 rounded-xl bg-pink-900/50 active:bg-pink-800/70 text-xs font-semibold text-pink-200 touch-manipulation"
-          >
-            今日分<br /><span className="text-xs font-normal opacity-70">2件</span>
-          </button>
-          <button
-            onClick={() => handleGenerate(14)}
-            className="h-11 rounded-xl bg-pink-700/60 active:bg-pink-700/80 text-xs font-semibold text-pink-100 touch-manipulation"
-          >
-            7日分<br /><span className="text-xs font-normal opacity-70">14件</span>
-          </button>
+      {/* 生成ボタン */}
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          onClick={() => handleGenerate(1)}
+          disabled={hasActiveJobs}
+          className="h-11 rounded-xl bg-pink-900/50 active:bg-pink-800/70 disabled:opacity-40 text-xs font-semibold text-pink-200 touch-manipulation"
+        >
+          {hasActiveJobs ? '生成中...' : '＋1件'}
+        </button>
+        <button
+          onClick={() => handleGenerate(2)}
+          disabled={hasActiveJobs}
+          className="h-11 rounded-xl bg-pink-900/50 active:bg-pink-800/70 disabled:opacity-40 text-xs font-semibold text-pink-200 touch-manipulation"
+        >
+          今日分<br /><span className="text-xs font-normal opacity-70">2件</span>
+        </button>
+        <button
+          onClick={() => handleGenerate(14)}
+          disabled={hasActiveJobs}
+          className="h-11 rounded-xl bg-pink-700/60 active:bg-pink-700/80 disabled:opacity-40 text-xs font-semibold text-pink-100 touch-manipulation"
+        >
+          7日分<br /><span className="text-xs font-normal opacity-70">14件</span>
+        </button>
+      </div>
+
+      {globalError && <p className="text-xs text-red-400 text-center">{globalError}</p>}
+
+      {/* ジョブ状態リスト */}
+      {jobs.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-slate-500 font-medium">最近のジョブ</p>
+          {jobs.map(j => (
+            <div key={j.id} className="flex items-start gap-2 text-xs rounded-lg px-2 py-1.5 bg-slate-900/40 border border-slate-700/20">
+              <span className="flex-shrink-0 mt-0.5">{statusIcon(j.status)}</span>
+              <div className="min-w-0 flex-1">
+                {j.status === 'pending'    && <span className="text-slate-400">準備中</span>}
+                {j.status === 'generating' && <span className="text-blue-400">生成中...</span>}
+                {j.status === 'done'       && <span className="text-green-400">完了</span>}
+                {j.status === 'failed'     && (
+                  <span className="text-red-400 break-words">失敗: {j.errorMessage?.slice(0, 80) ?? 'unknown error'}</span>
+                )}
+              </div>
+              {j.status === 'failed' && (
+                <button
+                  onClick={() => handleGenerate(1)}
+                  disabled={hasActiveJobs}
+                  className="flex-shrink-0 text-xs text-pink-400 underline hover:text-pink-300 disabled:opacity-40"
+                >
+                  再試行
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
-
-      {error && <p className="text-xs text-red-400 text-center">{error}</p>}
     </div>
   )
 }
