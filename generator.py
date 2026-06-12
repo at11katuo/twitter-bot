@@ -29,10 +29,12 @@ import fal_client
 try:
     from research.context_builder import build_full_context, build_kimono_prompt
     from research.trend_collector import get_trend_context
+    from research.film_grade import apply_film_look
 except ImportError:
     def build_full_context(**_): return ""
     def build_kimono_prompt(**_): return ""
     def get_trend_context(): return ""
+    def apply_film_look(src, dst=None, preset="subtle", **_): return src or dst
 
 # 画像品質サフィックス（research/data/image_config.json が単一定義元）
 def _load_image_config() -> dict:
@@ -46,6 +48,7 @@ def _load_image_config() -> dict:
 _IMAGE_CFG = _load_image_config()
 QUALITY_SUFFIX   = _IMAGE_CFG.get("quality_suffix", "")
 NEGATIVE_PROMPT  = _IMAGE_CFG.get("negative_prompt", "")
+FILM_PRESET      = os.environ.get("FILM_PRESET", "subtle")
 
 load_dotenv()
 
@@ -299,6 +302,9 @@ def upload_image_to_dashboard(post_id: str, image_url: str) -> None:
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         tmp_path = tmp.name
     urllib.request.urlretrieve(image_url, tmp_path)
+
+    apply_film_look(tmp_path, preset=FILM_PRESET)
+    print(f"[フィルム] {FILM_PRESET} グレイン適用完了")
 
     boundary = "----FormBoundary7MA4YWxkTrZu0gW"
     with open(tmp_path, "rb") as f:

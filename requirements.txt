@@ -5,3 +5,5 @@ fal-client>=0.10.0
 fastapi>=0.110.0
 uvicorn>=0.29.0
 requests>=2.31.0
+pillow>=10.0.0
+numpy>=1.26.0

@@ -349,6 +349,27 @@ export async function POST() {
     return NextResponse.json({ error: 'image download failed', detail: String(dlErr), id: post.id }, { status: 500 })
   }
 
+  // ⑦ フィルムグレード（research-api 経由）
+  const filmPreset  = process.env.FILM_PRESET ?? 'subtle'
+  const researchApi = process.env.RESEARCH_API_URL ?? 'http://research-api:8787'
+  try {
+    const filmRes = await fetch(`${researchApi}/film-grade`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_b64: imgBuf.toString('base64'), preset: filmPreset }),
+      signal: AbortSignal.timeout(30_000),
+    })
+    if (filmRes.ok) {
+      const filmData = await filmRes.json() as { ok: boolean; image_b64?: string; preset?: string }
+      if (filmData.ok && filmData.image_b64) {
+        imgBuf = Buffer.from(filmData.image_b64, 'base64')
+        console.log('[generate/rin] film grade applied preset=%s', filmData.preset)
+      }
+    }
+  } catch (filmErr) {
+    console.warn('[generate/rin] film grade skipped:', filmErr)
+  }
+
   const mediaDir = process.env.IMAGE_DIR ?? '/app/data/images'
   fs.mkdirSync(mediaDir, { recursive: true })
   const filename = `${post.id}.png`

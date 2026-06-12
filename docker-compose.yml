@@ -21,6 +21,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: file:/app/data/hana.db
+      FILM_PRESET: ${FILM_PRESET:-subtle}
     volumes:
       - db_data:/app/data
     restart: unless-stopped
@@ -38,6 +39,8 @@ services:
       DATABASE_URL: file:/app/data/hana.db
       IMAGE_DIR: /app/data/images
       PRISMA_QUERY_ENGINE_LIBRARY: /app/prisma-engine/libquery_engine-linux-musl-openssl-3.0.x.so.node
+      FILM_PRESET: ${FILM_PRESET:-subtle}
+      RESEARCH_API_URL: http://research-api:8787
     ports:
       - "3001:3001"
     volumes:
@@ -56,6 +59,7 @@ services:
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL:-deepseek/deepseek-chat}
+      - FILM_PRESET=${FILM_PRESET:-subtle}
       - TZ=Asia/Tokyo
     ports:
       - "8787:8787"

@@ -78,7 +78,29 @@ export async function POST(req: Request) {
   const filename = `reply-${Date.now()}.png`
   try {
     const imgRes = await fetch(falImageUrl)
-    const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+    let imgBuf = Buffer.from(await imgRes.arrayBuffer())
+
+    // フィルムグレード（research-api 経由）
+    const filmPreset  = process.env.FILM_PRESET ?? 'subtle'
+    const researchApi = process.env.RESEARCH_API_URL ?? 'http://research-api:8787'
+    try {
+      const filmRes = await fetch(`${researchApi}/film-grade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_b64: imgBuf.toString('base64'), preset: filmPreset }),
+        signal: AbortSignal.timeout(30_000),
+      })
+      if (filmRes.ok) {
+        const filmData = await filmRes.json() as { ok: boolean; image_b64?: string; preset?: string }
+        if (filmData.ok && filmData.image_b64) {
+          imgBuf = Buffer.from(filmData.image_b64, 'base64')
+          console.log('[generate/reply-image] film grade applied preset=%s', filmData.preset)
+        }
+      }
+    } catch (filmErr) {
+      console.warn('[generate/reply-image] film grade skipped:', filmErr)
+    }
+
     fs.writeFileSync(path.join(repliesDir, filename), imgBuf)
     console.log('[generate/reply-image] 保存完了 filename=%s', filename)
   } catch (err) {
