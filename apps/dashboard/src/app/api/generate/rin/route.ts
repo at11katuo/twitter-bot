@@ -309,8 +309,8 @@ export async function POST() {
   fal.config({ credentials: falKey })
   const kimonoHint    = pickKimonoHint(jstMonth)
   const eleganceBlock = (imageConfig as Record<string, string>).elegance_block ?? ''
-  const parts         = [kimonoHint, eleganceBlock, scenePrompt].filter(s => s !== '')
-  const basePrompt    = parts.join(', ')
+  const promptParts   = [kimonoHint, eleganceBlock, scenePrompt].filter(s => s !== '')
+  const basePrompt    = promptParts.join(', ')
   const falPrompt     = imageConfig.quality_suffix
     ? `${basePrompt}, ${imageConfig.quality_suffix}`
     : basePrompt
