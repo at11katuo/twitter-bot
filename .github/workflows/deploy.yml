@@ -45,9 +45,7 @@ jobs:
             echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> .env
             echo "TAVILY_API_KEY=${{ secrets.TAVILY_API_KEY }}" >> .env
             echo "OPENROUTER_MODEL=${OPENROUTER_MODEL:-deepseek/deepseek-chat}" >> .env
-            if [ -f reference_url.txt ]; then
-              echo "REFERENCE_IMAGE_URL=$(tr -d '[:space:]' < reference_url.txt)" >> .env
-            fi
+            echo "REFERENCE_IMAGE_URL=${{ secrets.REFERENCE_IMAGE_URL }}" >> .env
 
             echo "==> docker compose build"
             DOCKER_BUILDKIT=1 docker compose build
