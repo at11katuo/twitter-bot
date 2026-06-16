@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import kimonoPatterns from '../../../../../../../research/data/kimono_patterns.json'
 import imageConfig from '../../../../../../../research/data/image_config.json'
+import { withRetry, TransientApiError } from '@/lib/retry'
 
 function pickKimonoHint(month: number): string {
   const useClassic = Math.random() < kimonoPatterns.classic_ratio
@@ -46,24 +47,27 @@ export async function POST(req: Request) {
   let falImageUrl: string
   try {
     console.log('[generate/reply-image] fal.ai 開始 prompt=%j', falPrompt)
-    const falResult = await Promise.race([
-      fal.subscribe('fal-ai/instant-character', {
-        input: {
-          image_url: referenceUrl,
-          prompt: falPrompt,
-          ...(imageConfig.negative_prompt ? { negative_prompt: imageConfig.negative_prompt } : {}),
-          num_images: 1,
-          output_format: 'png',
-        },
-        pollInterval: 3000,
-        onQueueUpdate(update) {
-          console.log('[generate/reply-image] fal.ai queue status=%s', (update as { status: string }).status)
-        },
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('fal.ai timeout after 180s')), 180_000)
-      ),
-    ]) as { data: { images: { url: string }[] } }
+    const falResult = await withRetry(
+      () => Promise.race([
+        fal.subscribe('fal-ai/instant-character', {
+          input: {
+            image_url: referenceUrl,
+            prompt: falPrompt,
+            ...(imageConfig.negative_prompt ? { negative_prompt: imageConfig.negative_prompt } : {}),
+            num_images: 1,
+            output_format: 'png' as const,
+          },
+          pollInterval: 3000,
+          onQueueUpdate(update) {
+            console.log('[generate/reply-image] fal.ai queue status=%s', (update as { status: string }).status)
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new TransientApiError('fal.ai timeout after 180s')), 180_000)
+        ),
+      ]) as Promise<{ data: { images: { url: string }[] } }>,
+      { label: 'fal.ai (reply-image)' },
+    )
 
     falImageUrl = falResult.data.images[0].url
     console.log('[generate/reply-image] fal.ai 完了 imageUrl=%s', falImageUrl.slice(0, 80))

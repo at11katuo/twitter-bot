@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { fal, ApiError } from '@fal-ai/client'
 import fs from 'fs'
 import path from 'path'
+import { withRetry, TransientApiError } from '@/lib/retry'
 import kimonoPatterns from '../../../../../../../research/data/kimono_patterns.json'
 import imageConfig from '../../../../../../../research/data/image_config.json'
 
@@ -237,26 +238,41 @@ export async function POST() {
     generationConfig: { maxOutputTokens: 2048 },
   })
 
+  type GeminiData = {
+    candidates: Array<{
+      content: { parts: Array<{ text?: string; thought?: boolean }> }
+      finishReason?: string
+    }>
+  }
+
+  async function callGeminiOnce(): Promise<GeminiData> {
+    const geminiRes = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiBody })
+    if (!geminiRes.ok) {
+      const errBody = await geminiRes.text()
+      const message = `Gemini API error (${geminiRes.status}): ${errBody.slice(0, 300)}`
+      // 503 (高負荷) と 429 (レート制限) は一時的エラーとしてリトライ対象にする
+      if (geminiRes.status === 503 || geminiRes.status === 429) {
+        throw new TransientApiError(message, geminiRes.status)
+      }
+      throw new Error(message)
+    }
+    return geminiRes.json()
+  }
+
   let scenePrompt = ''
   let tweetText = ''
 
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) console.log('[generate/rin] Gemini パース失敗、リトライ中...')
 
-    const geminiRes = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiBody })
-
-    if (!geminiRes.ok) {
-      const errBody = await geminiRes.text()
-      console.error('[generate/rin] Gemini API error:', errBody)
-      await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `Gemini API error: ${errBody.slice(0, 200)}` } })
-      return NextResponse.json({ error: 'Gemini API error', detail: errBody, jobId }, { status: 500 })
-    }
-
-    const geminiData = await geminiRes.json() as {
-      candidates: Array<{
-        content: { parts: Array<{ text?: string; thought?: boolean }> }
-        finishReason?: string
-      }>
+    let geminiData: GeminiData
+    try {
+      geminiData = await withRetry(() => callGeminiOnce(), { label: 'gemini' })
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err)
+      console.error('[generate/rin] Gemini API error (リトライ後も失敗):', detail)
+      await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `Gemini API error: ${detail.slice(0, 200)}` } })
+      return NextResponse.json({ error: 'Gemini API error', detail, jobId }, { status: 500 })
     }
 
     const geminiParts = geminiData.candidates?.[0]?.content?.parts ?? []
@@ -334,18 +350,21 @@ export async function POST() {
   let falResult: { data: { images: { url: string }[] } }
   try {
     console.log('[generate/rin] fal.ai input=%s', JSON.stringify({ ...falInput, promptLength: falInput.prompt.length }, null, 2))
-    falResult = await Promise.race([
-      fal.subscribe('fal-ai/instant-character', {
-        input: falInput,
-        pollInterval: 3000,
-        onQueueUpdate(update) {
-          console.log('[generate/rin] fal.ai queue status=%s', (update as { status: string }).status)
-        },
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('fal.ai timeout after 180s')), 180_000)
-      ),
-    ]) as { data: { images: { url: string }[] } }
+    falResult = await withRetry(
+      () => Promise.race([
+        fal.subscribe('fal-ai/instant-character', {
+          input: falInput,
+          pollInterval: 3000,
+          onQueueUpdate(update) {
+            console.log('[generate/rin] fal.ai queue status=%s', (update as { status: string }).status)
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new TransientApiError('fal.ai timeout after 180s')), 180_000)
+        ),
+      ]) as Promise<{ data: { images: { url: string }[] } }>,
+      { label: 'fal.ai' },
+    )
     console.log('[generate/rin] fal.ai 完了 imageUrl=%s', falResult?.data?.images?.[0]?.url?.slice(0, 80))
   } catch (falErr) {
     let detail = String(falErr)
