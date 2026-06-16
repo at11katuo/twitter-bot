@@ -17,7 +17,7 @@ function pickKimonoHint(month: number): string {
   const colorPool = kimonoPatterns.seasonal_colors[colorKey] ?? kimonoPatterns.colors
   const color = colorPool[Math.floor(Math.random() * colorPool.length)]
   const obi = kimonoPatterns.obi[Math.floor(Math.random() * kimonoPatterns.obi.length)]
-  return `she is wearing a traditional Japanese kimono (着物), ${color} colored with wide kimono sleeves and formal Japanese draping, ${pattern}, paired with ${obi} obi sash, NOT western clothes`
+  return `she is wearing a traditional Japanese kimono (着物), entirely ${color} kimono with single color scheme throughout, wide kimono sleeves and formal Japanese draping, ${pattern}, paired with ${obi} obi sash, NOT western clothes`
 }
 
 export const maxDuration = 60
