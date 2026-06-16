@@ -1,6 +1,6 @@
 import { prisma } from '@hana/db'
 import { NextResponse } from 'next/server'
-import { fal } from '@fal-ai/client'
+import { fal, ApiError } from '@fal-ai/client'
 import fs from 'fs'
 import path from 'path'
 import kimonoPatterns from '../../../../../../../research/data/kimono_patterns.json'
@@ -323,20 +323,20 @@ export async function POST() {
   const falPrompt     = imageConfig.quality_suffix
     ? `${basePrompt}, ${imageConfig.quality_suffix}`
     : basePrompt
+  const falInput = {
+    image_url: referenceUrl,
+    prompt: falPrompt,
+    ...(imageConfig.negative_prompt ? { negative_prompt: imageConfig.negative_prompt } : {}),
+    num_images: 1,
+    output_format: 'png' as const,
+  }
+
   let falResult: { data: { images: { url: string }[] } }
   try {
-    console.log('[generate/rin] 参照画像 referenceUrl=%s', referenceUrl.split('/').pop())
-    console.log('[generate/rin] kimonoHint=%s', kimonoHint)
-    console.log('[generate/rin] fal.ai 開始 prompt=%j', falPrompt)
+    console.log('[generate/rin] fal.ai input=%s', JSON.stringify({ ...falInput, promptLength: falInput.prompt.length }, null, 2))
     falResult = await Promise.race([
       fal.subscribe('fal-ai/instant-character', {
-        input: {
-          image_url: referenceUrl,
-          prompt: falPrompt,
-          ...(imageConfig.negative_prompt ? { negative_prompt: imageConfig.negative_prompt } : {}),
-          num_images: 1,
-          output_format: 'png',
-        },
+        input: falInput,
         pollInterval: 3000,
         onQueueUpdate(update) {
           console.log('[generate/rin] fal.ai queue status=%s', (update as { status: string }).status)
@@ -348,9 +348,15 @@ export async function POST() {
     ]) as { data: { images: { url: string }[] } }
     console.log('[generate/rin] fal.ai 完了 imageUrl=%s', falResult?.data?.images?.[0]?.url?.slice(0, 80))
   } catch (falErr) {
-    console.error('[generate/rin] fal.ai エラー:', falErr)
-    await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `fal.ai: ${String(falErr).slice(0, 200)}` } })
-    return NextResponse.json({ error: 'fal.ai image generation failed', detail: String(falErr), id: post.id, jobId }, { status: 500 })
+    let detail = String(falErr)
+    if (falErr instanceof ApiError) {
+      console.error('[generate/rin] fal.ai ApiError status=%d body=%s', falErr.status, JSON.stringify(falErr.body, null, 2))
+      detail = JSON.stringify({ status: falErr.status, body: falErr.body })
+    } else {
+      console.error('[generate/rin] fal.ai エラー:', falErr)
+    }
+    await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `fal.ai: ${detail.slice(0, 1000)}` } })
+    return NextResponse.json({ error: 'fal.ai image generation failed', detail, id: post.id, jobId }, { status: 500 })
   }
 
   const imageUrl = falResult.data.images[0].url
