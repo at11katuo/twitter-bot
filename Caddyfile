@@ -1,0 +1,55 @@
+# ─────────────────────────────────────────────────────────────
+# twitter-bot (凛) Caddyfile
+# 【現在】IPアドレス直接アクセス (HTTP のみ)
+# 【将来】ドメイン取得後はサーバーブロックを your-domain.com に差し替えると
+#         Let's Encrypt TLS が自動で有効になる
+# ─────────────────────────────────────────────────────────────
+
+http://:80 {
+    log {
+        output stderr
+        format console
+    }
+
+    encode gzip
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+
+    # ネットワーク層の Basic 認証 (BCrypt ハッシュは .env から注入)
+    basic_auth {
+        {env.DASHBOARD_BASIC_USER} {env.DASHBOARD_BASIC_PASS_HASH}
+    }
+
+    reverse_proxy dashboard:3001 {
+        transport http {
+            response_header_timeout 120s
+        }
+    }
+}
+
+# ─────────────────────────────────────────────────────────────
+# ドメイン取得後の設定例（上のブロックと差し替える）
+# ─────────────────────────────────────────────────────────────
+# your-domain.com {
+#     encode gzip
+#     header {
+#         X-Content-Type-Options nosniff
+#         X-Frame-Options DENY
+#         Referrer-Policy strict-origin-when-cross-origin
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains"
+#         -Server
+#     }
+#     basic_auth {
+#         {env.DASHBOARD_BASIC_USER} {env.DASHBOARD_BASIC_PASS_HASH}
+#     }
+#     reverse_proxy dashboard:3001 {
+#         transport http {
+#             response_header_timeout 120s
+#         }
+#     }
+# }
