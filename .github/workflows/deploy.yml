@@ -49,7 +49,7 @@ jobs:
             docker pull caddy:2-alpine
             CADDY_HASH=$(docker run --rm caddy:2-alpine caddy hash-password --plaintext "${{ secrets.HANA_BASIC_PASS }}" 2>/dev/null)
             [ -n "$CADDY_HASH" ] || { echo "ERROR: caddy hash-password returned empty result" >&2; exit 1; }
-            printf 'http://:80 {\n    log { output stderr\n    format console\n    }\n    encode gzip\n    header {\n        X-Content-Type-Options nosniff\n        X-Frame-Options DENY\n        Referrer-Policy strict-origin-when-cross-origin\n        -Server\n    }\n    basic_auth {\n        %s %s\n    }\n    reverse_proxy dashboard:3001 {\n        transport http {\n            response_header_timeout 120s\n        }\n    }\n}\n' "${{ secrets.HANA_BASIC_USER }}" "$CADDY_HASH" > Caddyfile.gen
+            printf 'http://:80 {\n    encode gzip\n    header {\n        X-Content-Type-Options nosniff\n        X-Frame-Options DENY\n        Referrer-Policy strict-origin-when-cross-origin\n        -Server\n    }\n    basic_auth {\n        %s %s\n    }\n    reverse_proxy dashboard:3001 {\n        transport http {\n            response_header_timeout 120s\n        }\n    }\n}\n' "${{ secrets.HANA_BASIC_USER }}" "$CADDY_HASH" > Caddyfile.gen
 
             echo "==> docker compose build"
             DOCKER_BUILDKIT=1 docker compose build
