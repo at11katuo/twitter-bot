@@ -54,7 +54,7 @@ services:
     ports:
       - "3001:80"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.gen:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     env_file: .env
