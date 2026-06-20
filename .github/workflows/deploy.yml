@@ -43,7 +43,6 @@ jobs:
             echo "FAL_KEY=${{ secrets.FAL_KEY }}" >> .env
             echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
             echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> .env
-            echo "TAVILY_API_KEY=${{ secrets.TAVILY_API_KEY }}" >> .env
             echo "OPENROUTER_MODEL=${OPENROUTER_MODEL:-deepseek/deepseek-chat}" >> .env
             echo "REFERENCE_IMAGE_URL=https://raw.githubusercontent.com/at11katuo/twitter-bot/main/reference/ref_b.png" >> .env
 
