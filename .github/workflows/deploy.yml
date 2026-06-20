@@ -45,8 +45,11 @@ jobs:
             echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> .env
             echo "OPENROUTER_MODEL=${OPENROUTER_MODEL:-deepseek/deepseek-chat}" >> .env
             echo "REFERENCE_IMAGE_URL=https://raw.githubusercontent.com/at11katuo/twitter-bot/main/reference/ref_b.png" >> .env
-            CADDY_HASH=$(docker run --rm caddy:2-alpine caddy hash-password --plaintext "${{ secrets.HANA_BASIC_PASS }}")
-            echo "DASHBOARD_BASIC_PASS_HASH=$CADDY_HASH" >> .env
+            echo "==> pull Caddy image (cache for hash generation)"
+            docker pull caddy:2-alpine
+            CADDY_HASH=$(docker run --rm caddy:2-alpine caddy hash-password --plaintext "${{ secrets.HANA_BASIC_PASS }}" 2>/dev/null)
+            [ -n "$CADDY_HASH" ] || { echo "ERROR: caddy hash-password returned empty result" >&2; exit 1; }
+            printf 'DASHBOARD_BASIC_PASS_HASH=%s\n' "$CADDY_HASH" >> .env
 
             echo "==> docker compose build"
             DOCKER_BUILDKIT=1 docker compose build
@@ -82,6 +85,7 @@ jobs:
             if [ "$HTTP_STATUS" != "200" ]; then
               echo "ERROR: dashboard not responding" >&2
               docker compose logs --tail=40 dashboard >&2
+              docker compose logs --tail=20 caddy >&2
               exit 1
             fi
 
