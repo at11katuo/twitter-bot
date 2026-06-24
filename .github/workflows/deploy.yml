@@ -25,7 +25,8 @@ jobs:
             cd ${{ secrets.HANA_DEPLOY_PATH }}
 
             echo "==> git pull"
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             echo "==> write .env"
             cat > .env <<'ENVEOF'
