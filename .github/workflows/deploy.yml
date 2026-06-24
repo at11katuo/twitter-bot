@@ -46,6 +46,17 @@ jobs:
             echo "OPENROUTER_MODEL=${OPENROUTER_MODEL:-deepseek/deepseek-chat}" >> .env
             echo "REFERENCE_IMAGE_URL=https://raw.githubusercontent.com/at11katuo/twitter-bot/main/reference/ref_b.png" >> .env
 
+            echo "==> verify REFERENCE_IMAGE_URL is correct"
+            _actual=$(grep '^REFERENCE_IMAGE_URL=' .env | cut -d= -f2-)
+            _expected="https://raw.githubusercontent.com/at11katuo/twitter-bot/main/reference/ref_b.png"
+            if [ "$_actual" != "$_expected" ]; then
+              echo "ERROR: REFERENCE_IMAGE_URL mismatch!" >&2
+              echo "  expected: $_expected" >&2
+              echo "  actual:   $_actual" >&2
+              exit 1
+            fi
+            echo "  OK: $_actual"
+
             echo "==> docker compose build"
             DOCKER_BUILDKIT=1 docker compose build
 

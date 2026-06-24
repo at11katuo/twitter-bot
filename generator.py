@@ -76,16 +76,19 @@ REFERENCE_IMAGE_PATH = Path("reference.png")
 REFERENCE_URL_CACHE  = Path("reference_url.txt")
 
 REFERENCE_PROMPT = (
-    "A photorealistic full-body portrait of a beautiful 20-year-old Japanese woman, "
-    "wearing a traditional Japanese kimono, plain undyed off-white silk fabric, "
-    "completely solid neutral color with absolutely no pattern, "
-    "properly fitted kitsuke with neat firmly closed collar, "
+    "A photorealistic full-body portrait from head to floor of a beautiful 20-year-old Japanese woman, "
+    "wearing a traditional Japanese kimono (着物), plain solid pale warm gray silk fabric — NOT white, NOT cream, NOT Chinese, "
+    "single neutral warm gray color throughout with absolutely no pattern, "
+    "specifically Japanese kitsuke style with neat firmly closed right-over-left collar (Japanese kimono fold, NOT Chinese mandarin collar), "
     "layered white han-eri (under-collar) clearly visible at neckline, "
     "fine matte silk fabric with subtle natural woven texture, no sheen, no gloss, not shiny, "
-    "elegant upright dignified posture, hands folded gracefully, "
-    "obi sash tied neatly at waist, "
-    "soft studio lighting, neutral grey background, "
-    "shot on 35mm lens, highly detailed, 8k, serene expression"
+    "wide traditional kimono sleeves, "
+    "nagoya otaiko obi sash prominently visible and clearly tied at waist, "
+    "elegant upright dignified posture, hands folded gracefully in front, "
+    "full-length shot showing complete kimono silhouette from collar to hem, "
+    "soft studio lighting, plain neutral grey background, no bokeh, "
+    "shot on 35mm lens, highly detailed, 8k, serene calm expression, "
+    "NOT hanfu, NOT qipao, NOT Chinese dress, NOT Western clothes"
 )
 
 # ------------------------------------------------------------------ #
