@@ -45,11 +45,6 @@ jobs:
             echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> .env
             echo "OPENROUTER_MODEL=${OPENROUTER_MODEL:-deepseek/deepseek-chat}" >> .env
             echo "REFERENCE_IMAGE_URL=https://raw.githubusercontent.com/at11katuo/twitter-bot/main/reference/ref_b.png" >> .env
-            echo "==> generate Caddyfile.gen (BCrypt hash embedded; avoids $ expansion in .env)"
-            docker pull caddy:2-alpine
-            CADDY_HASH=$(docker run --rm caddy:2-alpine caddy hash-password --plaintext "${{ secrets.HANA_BASIC_PASS }}" 2>/dev/null)
-            [ -n "$CADDY_HASH" ] || { echo "ERROR: caddy hash-password returned empty result" >&2; exit 1; }
-            printf 'http://:80 {\n    encode gzip\n    header {\n        X-Content-Type-Options nosniff\n        X-Frame-Options DENY\n        Referrer-Policy strict-origin-when-cross-origin\n        -Server\n    }\n    basic_auth {\n        %s %s\n    }\n    reverse_proxy dashboard:3001 {\n        transport http {\n            response_header_timeout 120s\n        }\n    }\n}\n' "${{ secrets.HANA_BASIC_USER }}" "$CADDY_HASH" > Caddyfile.gen
 
             echo "==> docker compose build"
             DOCKER_BUILDKIT=1 docker compose build
@@ -71,7 +66,6 @@ jobs:
             HTTP_STATUS="000"
             while [ "$ATTEMPTS" -lt 12 ]; do
               HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-                -u "${{ secrets.HANA_BASIC_USER }}:${{ secrets.HANA_BASIC_PASS }}" \
                 --max-time 10 \
                 "http://localhost:3001/login" 2>/dev/null) || HTTP_STATUS="000"
               if [ "$HTTP_STATUS" = "200" ]; then
@@ -103,7 +97,7 @@ jobs:
                 || true
               echo "0 8  * * * cd ${{ secrets.HANA_DEPLOY_PATH }} && ./venv_deployer/bin/python bot.py morning >> /home/deployer/twitter-bot/logs/bot.log 2>&1"
               echo "0 22 * * * cd ${{ secrets.HANA_DEPLOY_PATH }} && ./venv_deployer/bin/python bot.py evening >> /home/deployer/twitter-bot/logs/bot.log 2>&1"
-              echo "0 3  * * * curl -s -u '${{ secrets.HANA_BASIC_USER }}:${{ secrets.HANA_BASIC_PASS }}' -X POST http://localhost:3001/api/cleanup >> /home/deployer/twitter-bot/logs/cleanup.log 2>&1"
+              echo "0 3  * * * curl -s -X POST http://localhost:3001/api/cleanup >> /home/deployer/twitter-bot/logs/cleanup.log 2>&1"
             ) | crontab -
 
             echo "==> deploy complete"
