@@ -52,26 +52,20 @@ export default function GenerateClient({ count }: { count: number }) {
       freeText:   settings.freeText.trim() || undefined,
     }
 
-    let lastPostId: string | null = null
-
     try {
+      // count 件分のジョブをキューに積む（各レスポンスは即座に返る）
       for (let i = 0; i < count; i++) {
         const res = await fetch('/api/generate/rin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
-        const data = await res.json().catch(() => ({})) as { ok?: boolean; id?: string; error?: string }
-        if (!res.ok) throw new Error(data.error ?? '生成に失敗しました')
-        lastPostId = data.id ?? null
+        const data = await res.json().catch(() => ({})) as { ok?: boolean; jobId?: string; error?: string }
+        if (!res.ok) throw new Error(data.error ?? 'ジョブの登録に失敗しました')
         setProgress(i + 1)
       }
-
-      if (count === 1 && lastPostId) {
-        router.push(`/posts/${lastPostId}`)
-      } else {
-        router.push('/')
-      }
+      // 全ジョブ登録完了 → ダッシュボードに戻る（ジョブ一覧でポーリング確認）
+      router.push('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : '不明なエラー')
       setIsGenerating(false)
@@ -229,8 +223,8 @@ export default function GenerateClient({ count }: { count: number }) {
             <div className="w-4 h-4 rounded-full border-2 border-pink-500 border-t-transparent animate-spin" />
             <span className="text-sm text-slate-300">
               {count > 1
-                ? `生成中... (${progress}/${count}件完了)`
-                : '生成中... (1〜3分かかります)'}
+                ? `ジョブ登録中... (${progress}/${count}件)`
+                : 'ジョブ登録中...'}
             </span>
           </div>
         ) : (

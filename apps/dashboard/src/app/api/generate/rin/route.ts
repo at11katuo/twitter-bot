@@ -10,121 +10,41 @@ import genSettings from '../../../../../../../research/data/generation_settings.
 
 // ── 型定義 ───────────────────────────────────────────────────────────────────
 type SituationEntry = { id: string; label: string; en_prompt: string | null; poses: string[] }
-type ColorEntry     = { id: string; light_en: string | null; base_en: string | null; dark_en: string | null }
+type ColorEntry     = { id: string; light_en: string | null; dark_en: string | null }
 type PatternEntry   = { id: string; en: string | null }
 type ExprEntry      = { id: string; en: string | null }
 type WeatherEntry   = { id: string; en: string | null }
 
+type GenBody = {
+  situation?: string; color?: string; shade?: string
+  pattern?: string; expression?: string; weather?: string; freeText?: string
+}
+type GenEnv = {
+  geminiKey: string; falKey: string; referenceUrl: string
+  filmPreset: string; researchApiUrl: string; mediaDir: string
+}
+
 // ── 季節カレンダー ────────────────────────────────────────────────────────────
 interface SeasonEntry {
-  season_en: string
-  allow: string[]
-  ban: string[]
-  events: string[]
-  mood: string
-  kimono_hint: string
+  season_en: string; allow: string[]; ban: string[]
+  events: string[]; mood: string; kimono_hint: string
 }
 
 const SEASON_CALENDAR: Record<string, SeasonEntry> = {
-  "1": {
-    "season_en": "Deep winter / New Year",
-    "allow": ["snow", "first sunrise (hatsuhinode)", "kotatsu", "plum buds", "camellia (tsubaki)", "kimono with fur collar"],
-    "ban": ["cherry blossoms", "autumn leaves", "fireflies", "summer festival"],
-    "events": ["New Year (Oshogatsu, Jan 1)", "Coming of Age Day (Seijin no Hi, 2nd Mon)"],
-    "mood": "quiet, fresh-start, cold air, prayerful",
-    "kimono_hint": "formal furisode or houmongi in red, white, or gold with pine-bamboo-plum (shochikubai) patterns"
-  },
-  "2": {
-    "season_en": "Late winter, plum season",
-    "allow": ["plum blossoms (ume)", "snow remnants", "camellia", "early spring light", "warm tea"],
-    "ban": ["cherry blossoms in full bloom", "autumn leaves", "summer"],
-    "events": ["Setsubun (Feb 3)", "Risshun / first day of spring"],
-    "mood": "anticipation, plum fragrance, thawing",
-    "kimono_hint": "camellia or plum blossom patterns on pale pink or ivory ground"
-  },
-  "3": {
-    "season_en": "Early spring, cherry blossom start",
-    "allow": ["cherry blossoms beginning to bloom", "plum", "warm breeze", "spring kimono", "peach blossoms"],
-    "ban": ["autumn leaves", "snow", "summer festival"],
-    "events": ["Hinamatsuri / Doll Festival (Mar 3)", "Vernal Equinox"],
-    "mood": "awakening, soft pink, gentle",
-    "kimono_hint": "hanami-style furisode with peach or early cherry blossoms, soft pastels"
-  },
-  "4": {
-    "season_en": "Full spring, peak sakura",
-    "allow": ["cherry blossoms in full bloom", "hanami picnic", "fresh green buds", "spring rain"],
-    "ban": ["autumn leaves", "snow", "fireflies"],
-    "events": ["Hanami season", "school/work new-year start"],
-    "mood": "celebratory, fleeting beauty (mono no aware), bright",
-    "kimono_hint": "sakura-patterned kimono in soft pinks or whites — the classic hanami look"
-  },
-  "5": {
-    "season_en": "Late spring / early summer (fresh green)",
-    "allow": ["fresh green leaves (shinryoku)", "wisteria (fuji)", "azalea", "carp streamers (koinobori)", "tea harvest"],
-    "ban": ["cherry blossoms", "autumn leaves", "snow"],
-    "events": ["Children's Day (May 5)", "Golden Week"],
-    "mood": "vivid green, refreshing, lively",
-    "kimono_hint": "iris or wisteria patterns in purple and green, informal hitoe (unlined) appropriate"
-  },
-  "6": {
-    "season_en": "Rainy season (tsuyu)",
-    "allow": ["hydrangea (ajisai)", "rain", "fireflies (hotaru)", "green maple (aomomiji)", "umbrella", "wet stone garden"],
-    "ban": ["cherry blossoms", "autumn leaves", "snow"],
-    "events": ["Nagoshi no Harae / summer purification (Jun 30)"],
-    "mood": "rain-soft, melancholic-beautiful, glistening, quiet",
-    "kimono_hint": "ajisai (hydrangea) patterns in blue-purple on linen or cotton fabric for the humid season"
-  },
-  "7": {
-    "season_en": "Midsummer, festival season begins",
-    "allow": ["summer festival (matsuri)", "fireworks (hanabi)", "yukata", "wind chime (furin)", "lotus", "shaved ice (kakigori)"],
-    "ban": ["cherry blossoms", "autumn leaves", "snow"],
-    "events": ["Tanabata / Star Festival (Jul 7)", "summer festivals"],
-    "mood": "festive, warm night, nostalgic, vibrant",
-    "kimono_hint": "lightweight yukata in asagao or goldfish patterns for summer festival look"
-  },
-  "8": {
-    "season_en": "Late summer, Obon",
-    "allow": ["fireworks", "yukata", "cicada", "sunflower", "lantern (toro nagashi)", "summer night"],
-    "ban": ["cherry blossoms", "autumn leaves", "snow"],
-    "events": ["Obon (mid-Aug)", "Bon Odori dance"],
-    "mood": "humid, ancestral, lantern-lit, bittersweet",
-    "kimono_hint": "indigo yukata with bold summer motifs, or fine-woven ro kimono for evening festivals"
-  },
-  "9": {
-    "season_en": "Early autumn",
-    "allow": ["full moon (tsukimi)", "susuki grass", "early autumn breeze", "red dragonfly", "cosmos flower"],
-    "ban": ["cherry blossoms", "snow", "summer festival"],
-    "events": ["Tsukimi / Moon Viewing", "Autumnal Equinox"],
-    "mood": "calm, transition, moonlit, reflective",
-    "kimono_hint": "autumn-transitional kimono with susuki grass and moon motifs on deep blue or gold ground"
-  },
-  "10": {
-    "season_en": "Autumn, leaves turning",
-    "allow": ["autumn leaves beginning (koyo)", "chrysanthemum", "persimmon", "harvest", "warm earthy tones"],
-    "ban": ["cherry blossoms", "snow", "fireflies"],
-    "events": ["autumn festivals", "chrysanthemum viewing"],
-    "mood": "warm, golden, harvest, cozy",
-    "kimono_hint": "chrysanthemum or maple patterns on deep crimson or amber, lined kimono for cooler weather"
-  },
-  "11": {
-    "season_en": "Peak autumn foliage",
-    "allow": ["autumn leaves in full color (momiji)", "ginkgo gold", "tea ceremony", "warm kimono", "hot spring with leaves"],
-    "ban": ["cherry blossoms", "summer festival", "fireflies"],
-    "events": ["Shichi-Go-San (Nov 15)", "peak koyo"],
-    "mood": "rich red-gold, contemplative, crisp",
-    "kimono_hint": "rich autumn weave with momiji patterns in scarlet and gold — most photogenic season for kimono"
-  },
-  "12": {
-    "season_en": "Early winter / year end",
-    "allow": ["first snow", "winter illumination", "year-end (toshikoshi)", "camellia", "warm sake", "hot spring steam"],
-    "ban": ["cherry blossoms", "autumn leaves at peak", "fireflies"],
-    "events": ["Year-end (Omisoka, Dec 31)", "winter solstice (Toji)"],
-    "mood": "cold, intimate, reflective, glowing-warm-indoors",
-    "kimono_hint": "elegant lined kimono or haori in deep navy or black with camellia or snow motifs"
-  }
+  "1":  { season_en: "Deep winter / New Year", allow: ["snow", "first sunrise (hatsuhinode)", "kotatsu", "plum buds", "camellia (tsubaki)"], ban: ["cherry blossoms", "autumn leaves", "fireflies", "summer festival"], events: ["New Year (Oshogatsu, Jan 1)", "Coming of Age Day (2nd Mon)"], mood: "quiet, fresh-start, cold air, prayerful", kimono_hint: "formal furisode or houmongi in red, white, or gold with pine-bamboo-plum patterns" },
+  "2":  { season_en: "Late winter, plum season", allow: ["plum blossoms (ume)", "snow remnants", "camellia", "early spring light"], ban: ["cherry blossoms in full bloom", "autumn leaves", "summer"], events: ["Setsubun (Feb 3)", "Risshun / first day of spring"], mood: "anticipation, plum fragrance, thawing", kimono_hint: "camellia or plum blossom patterns on pale pink or ivory ground" },
+  "3":  { season_en: "Early spring, cherry blossom start", allow: ["cherry blossoms beginning to bloom", "plum", "warm breeze", "peach blossoms"], ban: ["autumn leaves", "snow", "summer festival"], events: ["Hinamatsuri (Mar 3)", "Vernal Equinox"], mood: "awakening, soft pink, gentle", kimono_hint: "hanami-style furisode with peach or early cherry blossoms, soft pastels" },
+  "4":  { season_en: "Full spring, peak sakura", allow: ["cherry blossoms in full bloom", "hanami picnic", "fresh green buds", "spring rain"], ban: ["autumn leaves", "snow", "fireflies"], events: ["Hanami season", "school/work new-year start"], mood: "celebratory, fleeting beauty, bright", kimono_hint: "sakura-patterned kimono in soft pinks or whites" },
+  "5":  { season_en: "Late spring / early summer", allow: ["fresh green leaves", "wisteria (fuji)", "azalea", "carp streamers (koinobori)"], ban: ["cherry blossoms", "autumn leaves", "snow"], events: ["Children's Day (May 5)", "Golden Week"], mood: "vivid green, refreshing, lively", kimono_hint: "iris or wisteria patterns in purple and green" },
+  "6":  { season_en: "Rainy season (tsuyu)", allow: ["hydrangea (ajisai)", "rain", "fireflies (hotaru)", "green maple", "umbrella"], ban: ["cherry blossoms", "autumn leaves", "snow"], events: ["Nagoshi no Harae (Jun 30)"], mood: "rain-soft, melancholic-beautiful, glistening", kimono_hint: "ajisai patterns in blue-purple on linen or cotton fabric" },
+  "7":  { season_en: "Midsummer, festival season", allow: ["summer festival (matsuri)", "fireworks (hanabi)", "yukata", "wind chime (furin)", "lotus"], ban: ["cherry blossoms", "autumn leaves", "snow"], events: ["Tanabata (Jul 7)", "summer festivals"], mood: "festive, warm night, nostalgic, vibrant", kimono_hint: "lightweight yukata in asagao or goldfish patterns" },
+  "8":  { season_en: "Late summer, Obon", allow: ["fireworks", "yukata", "cicada", "sunflower", "lantern (toro nagashi)"], ban: ["cherry blossoms", "autumn leaves", "snow"], events: ["Obon (mid-Aug)", "Bon Odori dance"], mood: "humid, ancestral, lantern-lit, bittersweet", kimono_hint: "indigo yukata with bold summer motifs" },
+  "9":  { season_en: "Early autumn", allow: ["full moon (tsukimi)", "susuki grass", "early autumn breeze", "red dragonfly", "cosmos flower"], ban: ["cherry blossoms", "snow", "summer festival"], events: ["Tsukimi / Moon Viewing", "Autumnal Equinox"], mood: "calm, transition, moonlit, reflective", kimono_hint: "autumn kimono with susuki grass and moon motifs on deep blue or gold" },
+  "10": { season_en: "Autumn, leaves turning", allow: ["autumn leaves (koyo)", "chrysanthemum", "persimmon", "harvest"], ban: ["cherry blossoms", "snow", "fireflies"], events: ["autumn festivals", "chrysanthemum viewing"], mood: "warm, golden, harvest, cozy", kimono_hint: "chrysanthemum or maple patterns on deep crimson or amber" },
+  "11": { season_en: "Peak autumn foliage", allow: ["autumn leaves in full color (momiji)", "ginkgo gold", "tea ceremony", "warm kimono"], ban: ["cherry blossoms", "summer festival", "fireflies"], events: ["Shichi-Go-San (Nov 15)", "peak koyo"], mood: "rich red-gold, contemplative, crisp", kimono_hint: "rich autumn weave with momiji patterns in scarlet and gold" },
+  "12": { season_en: "Early winter / year end", allow: ["first snow", "winter illumination", "year-end", "camellia", "warm sake"], ban: ["cherry blossoms", "autumn leaves at peak", "fireflies"], events: ["Year-end (Omisoka, Dec 31)", "winter solstice (Toji)"], mood: "cold, intimate, reflective, glowing-warm-indoors", kimono_hint: "elegant lined kimono in deep navy or black with camellia or snow motifs" },
 }
 
-// ── ハッシュタグプール ────────────────────────────────────────────────────────
 const HASHTAG_POOL = [
   '#Japan', '#JapaneseCulture', '#Kimono', '#JapanTravel',
   '#WabiSabi', '#Sakura', '#TraditionalJapan', '#JapaneseBeauty',
@@ -132,7 +52,6 @@ const HASHTAG_POOL = [
   '#JapaneseFashion', '#Zen', '#KimonoStyle',
 ]
 
-// ── システムプロンプト ─────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are the content generator for the Twitter account "凛（Rin）", a beautiful 20-year-old Japanese woman in seasonal kimono who warmly shares Japanese culture with international followers.
 
 【Character: 凛（Rin）】
@@ -172,28 +91,28 @@ TWEET: {Line 1 English — must include "I", describing Rin's feeling or action,
 Do NOT add hashtags. Do NOT add any extra lines. Output ends after Line 3.`
 
 // ── ユーティリティ ────────────────────────────────────────────────────────────
+function jstMonth(): number {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
+}
+
 function getSeasonalContext(): string {
-  const jstMonth = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
-  const entry = SEASON_CALENDAR[String(jstMonth)]
+  const m = jstMonth()
+  const entry = SEASON_CALENDAR[String(m)]
   if (!entry) return ''
   return [
-    `=== SEASONAL CONTEXT (Month ${jstMonth}) ===`,
-    `Season: ${entry.season_en}`,
-    `Mood: ${entry.mood}`,
+    `=== SEASONAL CONTEXT (Month ${m}) ===`,
+    `Season: ${entry.season_en}`, `Mood: ${entry.mood}`,
     `Allowed motifs: ${entry.allow.join(', ')}`,
     `Forbidden: ${entry.ban.join(', ')}`,
     `Events: ${entry.events.join(', ')}`,
-    `Kimono hint: ${entry.kimono_hint}`,
-    `===`,
+    `Kimono hint: ${entry.kimono_hint}`, `===`,
   ].join('\n')
 }
 
-function pickRandomComponents(month: number): { color: string; pattern: string; obi: string } {
+function pickRandomComponents(month: number) {
   const useClassic = Math.random() < kimonoPatterns.classic_ratio
   const key = String(month) as keyof typeof kimonoPatterns.seasonal
-  const patternPool = useClassic
-    ? kimonoPatterns.classic
-    : (kimonoPatterns.seasonal[key] ?? kimonoPatterns.classic)
+  const patternPool = useClassic ? kimonoPatterns.classic : (kimonoPatterns.seasonal[key] ?? kimonoPatterns.classic)
   const pattern = patternPool[Math.floor(Math.random() * patternPool.length)]
   const colorPool = kimonoPatterns.seasonal_colors[key as keyof typeof kimonoPatterns.seasonal_colors] ?? kimonoPatterns.colors
   const color = colorPool[Math.floor(Math.random() * colorPool.length)]
@@ -201,312 +120,251 @@ function pickRandomComponents(month: number): { color: string; pattern: string; 
   return { color, pattern, obi }
 }
 
-function buildKimonoHint(
-  colorId: string | undefined,
-  shadeId: string | undefined,
-  patternId: string | undefined,
-  month: number,
-): string {
+function buildKimonoHint(colorId: string | undefined, shadeId: string | undefined, patternId: string | undefined, month: number): string {
   const rand = pickRandomComponents(month)
-
-  // Color
   let colorEn: string
   if (!colorId || colorId === 'random') {
     colorEn = rand.color
   } else {
-    const colorCfg = (genSettings.colors as ColorEntry[]).find(c => c.id === colorId)
-    if (!colorCfg?.light_en) {
-      colorEn = rand.color
-    } else {
-      const resolvedShade = (!shadeId || shadeId === 'random')
-        ? (Math.random() < 0.5 ? 'light' : 'dark')
-        : shadeId
-      colorEn = resolvedShade === 'light' ? (colorCfg.light_en ?? rand.color) : (colorCfg.dark_en ?? rand.color)
+    const cfg = (genSettings.colors as ColorEntry[]).find(c => c.id === colorId)
+    if (!cfg?.light_en) { colorEn = rand.color } else {
+      const shade = (!shadeId || shadeId === 'random') ? (Math.random() < 0.5 ? 'light' : 'dark') : shadeId
+      colorEn = shade === 'light' ? (cfg.light_en ?? rand.color) : (cfg.dark_en ?? rand.color)
     }
   }
-
-  // Pattern
   let patternEn: string
   if (!patternId || patternId === 'random') {
     patternEn = rand.pattern
   } else {
-    const patCfg = (genSettings.patterns as PatternEntry[]).find(p => p.id === patternId)
-    patternEn = patCfg?.en ?? rand.pattern
+    const cfg = (genSettings.patterns as PatternEntry[]).find(p => p.id === patternId)
+    patternEn = cfg?.en ?? rand.pattern
   }
-
   return `she is wearing a traditional Japanese kimono (着物), entirely ${colorEn} kimono with single color scheme throughout, wide kimono sleeves and formal Japanese draping, ${patternEn}, paired with ${rand.obi} obi sash, NOT western clothes`
 }
 
-function buildSceneFromSettings(
-  situationId: string | undefined,
-  expressionId: string | undefined,
-  weatherId: string | undefined,
-  freeText: string | undefined,
-): string | null {
+function buildSceneFromSettings(situationId: string | undefined, expressionId: string | undefined, weatherId: string | undefined, freeText: string | undefined): string | null {
   if (!situationId || situationId === 'random') return null
   const sit = (genSettings.situations as SituationEntry[]).find(s => s.id === situationId)
   if (!sit?.en_prompt) return null
-
   const pose = freeText?.trim() || sit.poses[Math.floor(Math.random() * sit.poses.length)]
-  const expEn = (expressionId && expressionId !== 'random')
-    ? ((genSettings.expressions as ExprEntry[]).find(e => e.id === expressionId)?.en ?? null)
-    : null
-  const wxEn = (weatherId && weatherId !== 'random')
-    ? ((genSettings.weather as WeatherEntry[]).find(w => w.id === weatherId)?.en ?? null)
-    : null
-
+  const expEn = (expressionId && expressionId !== 'random') ? ((genSettings.expressions as ExprEntry[]).find(e => e.id === expressionId)?.en ?? null) : null
+  const wxEn  = (weatherId && weatherId !== 'random') ? ((genSettings.weather as WeatherEntry[]).find(w => w.id === weatherId)?.en ?? null) : null
   return [sit.en_prompt, pose, expEn, wxEn].filter(Boolean).join(', ')
 }
 
 function pickHashtags(n: number): string[] {
   const pool = [...HASHTAG_POOL]
   const result: string[] = []
-  for (let i = 0; i < n && pool.length > 0; i++) {
-    const idx = Math.floor(Math.random() * pool.length)
-    result.push(pool.splice(idx, 1)[0])
-  }
+  for (let i = 0; i < n && pool.length > 0; i++) result.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0])
   return result
 }
 
+// ── Gemini 呼び出し（強化リトライ + フォールバックモデル） ─────────────────────
+type GeminiData = { candidates: Array<{ content: { parts: Array<{ text?: string; thought?: boolean }> }; finishReason?: string }> }
+
+async function callGemini(geminiKey: string, systemPrompt: string, userMessage: string): Promise<GeminiData> {
+  const body = JSON.stringify({
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+    generationConfig: { maxOutputTokens: 2048 },
+  })
+
+  // gemini-2.5-flash-lite を maxRetries=5, baseDelayMs=10s で試行
+  async function tryModel(model: string): Promise<GeminiData> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`
+    return withRetry(async () => {
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+      if (!res.ok) {
+        const errText = await res.text()
+        const msg = `Gemini ${model} error (${res.status}): ${errText.slice(0, 300)}`
+        if (res.status === 503 || res.status === 429) throw new TransientApiError(msg, res.status)
+        throw new Error(msg)
+      }
+      return res.json() as Promise<GeminiData>
+    }, { label: `gemini/${model}`, maxRetries: 5, baseDelayMs: 10_000 })
+  }
+
+  try {
+    return await tryModel('gemini-2.5-flash-lite')
+  } catch (err) {
+    // 全リトライ失敗 & 一時エラーなら gemini-2.5-flash にフォールバック
+    const isTransient = err instanceof TransientApiError || (typeof (err as {status?:unknown})?.status === 'number' && [503,429].includes((err as {status:number}).status))
+    if (isTransient) {
+      console.warn('[generate/rin] gemini-2.5-flash-lite 全リトライ失敗→ gemini-2.5-flash にフォールバック')
+      return await tryModel('gemini-2.5-flash')
+    }
+    throw err
+  }
+}
+
+// ── バックグラウンド生成本体 ──────────────────────────────────────────────────
+async function runGeneration(jobId: string, body: GenBody, env: GenEnv): Promise<void> {
+  const { geminiKey, falKey, referenceUrl, filmPreset, researchApiUrl, mediaDir } = env
+  const { situation, color, shade, pattern, expression, weather, freeText } = body
+
+  try {
+    await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'generating' } })
+
+    const month = jstMonth()
+    const sitConfig = (situation && situation !== 'random')
+      ? ((genSettings.situations as SituationEntry[]).find(s => s.id === situation) ?? null)
+      : null
+
+    // Gemini: シーン＋ツイート生成
+    const seasonalContext = getSeasonalContext()
+    const fullSystemPrompt = seasonalContext ? `${seasonalContext}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
+    const userMessage = sitConfig
+      ? `Generate a post for Rin. She is at a ${sitConfig.label}. Write the tweet to reflect this traditional Japanese setting, matching the current season's mood.`
+      : 'Generate one post for Rin based on the current season.'
+
+    const geminiData = await callGemini(geminiKey, fullSystemPrompt, userMessage)
+
+    // パース（最大2回試行）
+    let geminiScenePrompt = ''
+    let tweetText = ''
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const parts = geminiData.candidates?.[0]?.content?.parts ?? []
+      const rawText = parts.filter(p => !p.thought && typeof p.text === 'string').map(p => p.text!).join('').trim()
+      const finishReason = geminiData.candidates?.[0]?.finishReason
+      if (finishReason === 'MAX_TOKENS') throw new Error('AI output truncated (MAX_TOKENS)')
+
+      const clean = rawText.replace(/^```[^\n]*\n?/m, '').replace(/\n?```\s*$/m, '').trim()
+      const sceneMatch = clean.match(/SCENE_PROMPT:\s*([^\n]+)/)
+      const tweetMatch = clean.match(/TWEET:\s*([\s\S]+)/)
+      if (!sceneMatch || !tweetMatch) {
+        if (attempt === 0) { console.warn('[generate/rin] Gemini parse fail, retry parse...'); continue }
+        throw new Error(`AI output format error: ${clean.slice(0, 200)}`)
+      }
+      geminiScenePrompt = sceneMatch[1].trim()
+      const tweetBody = tweetMatch[1].trim().split('\n').filter(l => !l.trimStart().startsWith('#')).join('\n').trim()
+      tweetText = `${tweetBody}\n${pickHashtags(4).join('\n')}`
+      break
+    }
+
+    // プロンプト構築
+    const kimonoHint = buildKimonoHint(color, shade, pattern, month)
+    const builtScene  = buildSceneFromSettings(situation, expression, weather, freeText)
+    const sceneToUse  = builtScene ?? geminiScenePrompt
+
+    // DB に下書き作成
+    const post = await prisma.post.create({
+      data: {
+        tweetText, imagePrompt: sceneToUse,
+        slot: 'evening', theme: 'rin-daily', themeName: 'Daily Post',
+        scheduledAt: new Date(), status: 'draft', japaneseTranslation: '',
+      },
+    })
+
+    // fal.ai 画像生成
+    fal.config({ credentials: falKey })
+    const eleganceBlock = (imageConfig as Record<string, string>).elegance_block ?? ''
+    const promptParts   = [kimonoHint, eleganceBlock, sceneToUse].filter(s => s !== '')
+    const falPrompt     = imageConfig.quality_suffix ? `${promptParts.join(', ')}, ${imageConfig.quality_suffix}` : promptParts.join(', ')
+    const falInput = {
+      image_url: referenceUrl, prompt: falPrompt,
+      ...(imageConfig.negative_prompt ? { negative_prompt: imageConfig.negative_prompt } : {}),
+      num_images: 1, output_format: 'png' as const,
+    }
+
+    console.log('[generate/rin bg] situation=%s color=%s pattern=%s falPromptLen=%d', situation ?? 'random', color ?? 'random', pattern ?? 'random', falPrompt.length)
+
+    const falResult = await withRetry(
+      () => Promise.race([
+        fal.subscribe('fal-ai/instant-character', {
+          input: falInput, pollInterval: 3000,
+          onQueueUpdate(u) { console.log('[generate/rin bg] fal status=%s', (u as {status:string}).status) },
+        }),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new TransientApiError('fal.ai timeout after 200s')), 200_000)),
+      ]) as Promise<{ data: { images: { url: string }[] } }>,
+      { label: 'fal.ai', maxRetries: 3, baseDelayMs: 5_000 },
+    )
+
+    const imageUrl = falResult.data.images[0].url
+
+    // 画像ダウンロード
+    const imgRes = await fetch(imageUrl)
+    let imgBuf = Buffer.from(await imgRes.arrayBuffer())
+
+    // フィルムグレード
+    try {
+      const filmRes = await fetch(`${researchApiUrl}/film-grade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_b64: imgBuf.toString('base64'), preset: filmPreset }),
+        signal: AbortSignal.timeout(30_000),
+      })
+      if (filmRes.ok) {
+        const fd = await filmRes.json() as { ok: boolean; image_b64?: string }
+        if (fd.ok && fd.image_b64) { imgBuf = Buffer.from(fd.image_b64, 'base64'); console.log('[generate/rin bg] film grade OK') }
+      }
+    } catch { console.warn('[generate/rin bg] film grade skipped') }
+
+    // 画像保存
+    fs.mkdirSync(mediaDir, { recursive: true })
+    const filename = `${post.id}.png`
+    fs.writeFileSync(path.join(mediaDir, filename), imgBuf)
+
+    // 生成条件を記録
+    const conditionsJson = (situation || color || shade || pattern || expression || weather || freeText)
+      ? JSON.stringify({ situation, color, shade, pattern, expression, weather, freeText: freeText || undefined })
+      : null
+
+    await prisma.post.update({
+      where: { id: post.id },
+      data: {
+        imagePath: filename, mediaType: 'image',
+        ...(conditionsJson ? { generationConditions: conditionsJson } : {}),
+      },
+    })
+
+    await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'done', postId: post.id } })
+    console.log('[generate/rin bg] 完了 postId=%s', post.id)
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[generate/rin bg] 失敗 jobId=%s:', jobId, err)
+    await prisma.generationJob.update({
+      where: { id: jobId },
+      data: { status: 'failed', errorMessage: msg.slice(0, 500) },
+    }).catch(() => { /* DB更新失敗は握りつぶす */ })
+  }
+}
+
 // ── エクスポート ──────────────────────────────────────────────────────────────
-export const maxDuration = 300
+export const maxDuration = 30  // ジョブ登録のみなので30秒で十分
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
-  const geminiKey   = process.env.GEMINI_API_KEY
-  const falKey      = process.env.FAL_KEY
+  const geminiKey    = process.env.GEMINI_API_KEY
+  const falKey       = process.env.FAL_KEY
   const referenceUrl = process.env.REFERENCE_IMAGE_URL
 
   if (!geminiKey)    return NextResponse.json({ error: 'GEMINI_API_KEY not set' }, { status: 500 })
   if (!falKey)       return NextResponse.json({ error: 'FAL_KEY not set' }, { status: 500 })
   if (!referenceUrl) return NextResponse.json({ error: 'REFERENCE_IMAGE_URL not set' }, { status: 500 })
 
-  // ① オプショナルなリクエストボディを読み込む（bot.py や旧UIからはbodyなし）
-  let reqBody: {
-    situation?: string; color?: string; shade?: string
-    pattern?: string; expression?: string; weather?: string; freeText?: string
-  } = {}
+  // オプショナルなリクエストボディ（bot.py や旧UIからはbodyなし）
+  let reqBody: GenBody = {}
   try {
     const ct = req.headers.get('content-type') ?? ''
     if (ct.includes('application/json')) reqBody = await req.json()
-  } catch { /* no body → all random */ }
+  } catch { /* no body = all random */ }
 
-  const { situation, color, shade, pattern, expression, weather, freeText } = reqBody
-
-  // ジョブ作成（pending）
+  // ジョブをDBに登録
   const job = await prisma.generationJob.create({ data: {} })
-  const jobId = job.id
 
-  const jstMonth = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
-
-  // ② シチュエーション設定を取得（ツイート文のGeminiコンテキストに使う）
-  const sitConfig = (situation && situation !== 'random')
-    ? ((genSettings.situations as SituationEntry[]).find(s => s.id === situation) ?? null)
-    : null
-
-  // ③ 季節コンテキスト＋Geminiシステムプロンプト
-  const seasonalContext = getSeasonalContext()
-  const fullSystemPrompt = seasonalContext ? `${seasonalContext}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
-
-  // ④ Geminiへのユーザーメッセージ（シチュエーション指定時はヒントを追加）
-  let userMessage = 'Generate one post for Rin based on the current season.'
-  if (sitConfig) {
-    userMessage = `Generate a post for Rin. She is at a ${sitConfig.label}. Write the tweet to reflect this traditional Japanese setting, matching the current season's mood.`
+  // バックグラウンドで生成を開始（await しないので即座に返る）
+  const env: GenEnv = {
+    geminiKey, falKey, referenceUrl,
+    filmPreset: process.env.FILM_PRESET ?? 'subtle',
+    researchApiUrl: process.env.RESEARCH_API_URL ?? 'http://research-api:8787',
+    mediaDir: process.env.IMAGE_DIR ?? '/app/data/images',
   }
 
-  // ⑤ Gemini でシーン＋ツイート文生成
-  await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'generating' } })
-
-  const geminiUrl  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`
-  const geminiBody = JSON.stringify({
-    system_instruction: { parts: [{ text: fullSystemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-    generationConfig: { maxOutputTokens: 2048 },
+  runGeneration(job.id, reqBody, env).catch(err => {
+    console.error('[generate/rin] Background generation unhandled error:', err)
   })
 
-  type GeminiData = {
-    candidates: Array<{
-      content: { parts: Array<{ text?: string; thought?: boolean }> }
-      finishReason?: string
-    }>
-  }
-
-  async function callGeminiOnce(): Promise<GeminiData> {
-    const geminiRes = await fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiBody })
-    if (!geminiRes.ok) {
-      const errBody = await geminiRes.text()
-      const message = `Gemini API error (${geminiRes.status}): ${errBody.slice(0, 300)}`
-      if (geminiRes.status === 503 || geminiRes.status === 429) throw new TransientApiError(message, geminiRes.status)
-      throw new Error(message)
-    }
-    return geminiRes.json()
-  }
-
-  let geminiScenePrompt = ''
-  let tweetText = ''
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt > 0) console.log('[generate/rin] Gemini パース失敗、リトライ中...')
-
-    let geminiData: GeminiData
-    try {
-      geminiData = await withRetry(() => callGeminiOnce(), { label: 'gemini' })
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err)
-      console.error('[generate/rin] Gemini API error:', detail)
-      await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `Gemini API error: ${detail.slice(0, 200)}` } })
-      return NextResponse.json({ error: 'Gemini API error', detail, jobId }, { status: 500 })
-    }
-
-    const geminiParts = geminiData.candidates?.[0]?.content?.parts ?? []
-    const rawText = geminiParts
-      .filter((p) => !p.thought && typeof p.text === 'string')
-      .map((p) => p.text!)
-      .join('')
-      .trim()
-
-    const finishReason = geminiData.candidates?.[0]?.finishReason
-    console.log('[generate/rin] finishReason=%s rawLen=%d', finishReason, rawText.length)
-    if (finishReason === 'MAX_TOKENS') {
-      await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: 'AI output truncated (MAX_TOKENS)' } })
-      return NextResponse.json({ error: 'AI output truncated (MAX_TOKENS)', raw: rawText, jobId }, { status: 500 })
-    }
-
-    const cleanText = rawText.replace(/^```[^\n]*\n?/m, '').replace(/\n?```\s*$/m, '').trim()
-    const sceneMatch = cleanText.match(/SCENE_PROMPT:\s*([^\n]+)/)
-    const tweetMatch = cleanText.match(/TWEET:\s*([\s\S]+)/)
-
-    if (!sceneMatch || !tweetMatch) {
-      if (attempt === 0) continue
-      await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: 'AI output format error after retry' } })
-      return NextResponse.json({ error: 'AI output format error', raw: cleanText, jobId }, { status: 500 })
-    }
-
-    geminiScenePrompt = sceneMatch[1].trim()
-    const tweetBodyLines = tweetMatch[1].trim().split('\n').filter((line) => !line.trimStart().startsWith('#'))
-    const tweetBody = tweetBodyLines.join('\n').trim()
-    tweetText = `${tweetBody}\n${pickHashtags(4).join('\n')}`
-    break
-  }
-
-  // ⑥ 着物ヒント＋シーンプロンプトを設定から構築（シチュエーション未指定時はGemini生成を使用）
-  const kimonoHint   = buildKimonoHint(color, shade, pattern, jstMonth)
-  const builtScene   = buildSceneFromSettings(situation, expression, weather, freeText)
-  const sceneToUse   = builtScene ?? geminiScenePrompt
-
-  // ⑦ DB に下書き作成
-  const post = await prisma.post.create({
-    data: {
-      tweetText,
-      imagePrompt: sceneToUse,
-      slot: 'evening',
-      theme: 'rin-daily',
-      themeName: 'Daily Post',
-      scheduledAt: new Date(),
-      status: 'draft',
-      japaneseTranslation: '',
-    },
-  })
-
-  // ⑧ fal.ai で画像生成
-  fal.config({ credentials: falKey })
-  const eleganceBlock = (imageConfig as Record<string, string>).elegance_block ?? ''
-  const promptParts   = [kimonoHint, eleganceBlock, sceneToUse].filter(s => s !== '')
-  const basePrompt    = promptParts.join(', ')
-  const falPrompt     = imageConfig.quality_suffix ? `${basePrompt}, ${imageConfig.quality_suffix}` : basePrompt
-  const falInput = {
-    image_url: referenceUrl,
-    prompt: falPrompt,
-    ...(imageConfig.negative_prompt ? { negative_prompt: imageConfig.negative_prompt } : {}),
-    num_images: 1,
-    output_format: 'png' as const,
-  }
-
-  let falResult: { data: { images: { url: string }[] } }
-  try {
-    console.log('[generate/rin] fal.ai input promptLen=%d situation=%s color=%s pattern=%s',
-      falInput.prompt.length, situation ?? 'random', color ?? 'random', pattern ?? 'random')
-    falResult = await withRetry(
-      () => Promise.race([
-        fal.subscribe('fal-ai/instant-character', {
-          input: falInput,
-          pollInterval: 3000,
-          onQueueUpdate(update) {
-            console.log('[generate/rin] fal.ai queue status=%s', (update as { status: string }).status)
-          },
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new TransientApiError('fal.ai timeout after 180s')), 180_000)
-        ),
-      ]) as Promise<{ data: { images: { url: string }[] } }>,
-      { label: 'fal.ai' },
-    )
-    console.log('[generate/rin] fal.ai 完了 imageUrl=%s', falResult?.data?.images?.[0]?.url?.slice(0, 80))
-  } catch (falErr) {
-    let detail = String(falErr)
-    if (falErr instanceof ApiError) {
-      console.error('[generate/rin] fal.ai ApiError status=%d body=%s', falErr.status, JSON.stringify(falErr.body, null, 2))
-      detail = JSON.stringify({ status: falErr.status, body: falErr.body })
-    } else {
-      console.error('[generate/rin] fal.ai エラー:', falErr)
-    }
-    await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `fal.ai: ${detail.slice(0, 1000)}` } })
-    return NextResponse.json({ error: 'fal.ai image generation failed', detail, id: post.id, jobId }, { status: 500 })
-  }
-
-  const imageUrl = falResult.data.images[0].url
-
-  // ⑨ 画像ダウンロード
-  let imgBuf: Buffer
-  try {
-    const imgRes = await fetch(imageUrl)
-    imgBuf = Buffer.from(await imgRes.arrayBuffer())
-  } catch (dlErr) {
-    console.error('[generate/rin] 画像DLエラー:', dlErr)
-    await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `image download: ${String(dlErr).slice(0, 200)}` } })
-    return NextResponse.json({ error: 'image download failed', detail: String(dlErr), id: post.id, jobId }, { status: 500 })
-  }
-
-  // ⑩ フィルムグレード
-  const filmPreset  = process.env.FILM_PRESET ?? 'subtle'
-  const researchApi = process.env.RESEARCH_API_URL ?? 'http://research-api:8787'
-  try {
-    const filmRes = await fetch(`${researchApi}/film-grade`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_b64: imgBuf.toString('base64'), preset: filmPreset }),
-      signal: AbortSignal.timeout(30_000),
-    })
-    if (filmRes.ok) {
-      const filmData = await filmRes.json() as { ok: boolean; image_b64?: string; preset?: string }
-      if (filmData.ok && filmData.image_b64) {
-        imgBuf = Buffer.from(filmData.image_b64, 'base64')
-        console.log('[generate/rin] film grade applied preset=%s', filmData.preset)
-      }
-    }
-  } catch (filmErr) {
-    console.warn('[generate/rin] film grade skipped:', filmErr)
-  }
-
-  // ⑪ 画像保存 + DB更新（生成条件も記録）
-  const mediaDir = process.env.IMAGE_DIR ?? '/app/data/images'
-  fs.mkdirSync(mediaDir, { recursive: true })
-  const filename = `${post.id}.png`
-  fs.writeFileSync(path.join(mediaDir, filename), imgBuf)
-
-  const conditionsJson = (situation || color || shade || pattern || expression || weather || freeText)
-    ? JSON.stringify({ situation, color, shade, pattern, expression, weather, freeText: freeText || undefined })
-    : null
-
-  await prisma.post.update({
-    where: { id: post.id },
-    data: {
-      imagePath: filename,
-      mediaType: 'image',
-      ...(conditionsJson ? { generationConditions: conditionsJson } : {}),
-    },
-  })
-
-  await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'done', postId: post.id } })
-  return NextResponse.json({ ok: true, id: post.id, jobId })
+  // jobId を即座に返す（生成完了を待たない）
+  return NextResponse.json({ ok: true, jobId: job.id })
 }

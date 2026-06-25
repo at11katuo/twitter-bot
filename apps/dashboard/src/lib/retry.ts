@@ -56,7 +56,8 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions):
         throw err
       }
 
-      const delay = baseDelayMs * 2 ** attempt
+      const jitter = 0.75 + Math.random() * 0.5  // ±25% jitter（同時リトライの衝突を防ぐ）
+      const delay = Math.floor(baseDelayMs * 2 ** attempt * jitter)
       console.warn(`[retry] ${label}: 一時的エラー検知、${delay}ms後にリトライ (${attempt + 1}/${maxRetries}回目):`, err)
       await new Promise((resolve) => setTimeout(resolve, delay))
     }

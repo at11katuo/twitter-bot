@@ -187,7 +187,16 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
               <div className="min-w-0 flex-1">
                 {j.status === 'pending'    && <span className="text-slate-400">準備中</span>}
                 {j.status === 'generating' && <span className="text-blue-400 animate-pulse">生成中...</span>}
-                {j.status === 'done'       && <span className="text-green-400">完了</span>}
+                {j.status === 'done'       && (
+                  <span className="text-green-400">
+                    完了
+                    {j.postId && (
+                      <a href={`/posts/${j.postId}`} className="ml-2 text-xs text-pink-400 underline hover:text-pink-300">
+                        投稿を見る →
+                      </a>
+                    )}
+                  </span>
+                )}
                 {j.status === 'failed'     && (
                   <span className="text-red-400 break-words">失敗: {j.errorMessage?.slice(0, 80) ?? 'unknown error'}</span>
                 )}
