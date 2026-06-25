@@ -40,6 +40,7 @@ model Post {
   imagePath           String?   // アップロード済みファイルパス (画像 or 動画)
   mediaType           String    @default("image") // "image" | "video"
   status      String    @default("draft") // draft | ready | posted | skipped
+  generationConditions String?   // JSON: {situation,color,shade,pattern,expression,weather,freeText}
   tweetId     String?   // 投稿後の Tweet ID
   postedAt    DateTime?
   deletedAt   DateTime?

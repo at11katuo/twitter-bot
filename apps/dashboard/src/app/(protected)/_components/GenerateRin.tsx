@@ -151,29 +151,18 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
         </div>
       )}
 
-      {/* 生成ボタン */}
+      {/* 生成ボタン（設定ページへ遷移） */}
       <div className="grid grid-cols-3 gap-2">
-        <button
-          onClick={() => handleGenerate(1)}
-          disabled={isGenerating}
-          className="h-11 rounded-xl bg-pink-900/50 active:bg-pink-800/70 disabled:opacity-40 text-xs font-semibold text-pink-200 touch-manipulation"
-        >
-          {isGenerating ? '生成中...' : '＋1件'}
-        </button>
-        <button
-          onClick={() => handleGenerate(2)}
-          disabled={isGenerating}
-          className="h-11 rounded-xl bg-pink-900/50 active:bg-pink-800/70 disabled:opacity-40 text-xs font-semibold text-pink-200 touch-manipulation"
-        >
-          今日分<br /><span className="text-xs font-normal opacity-70">2件</span>
-        </button>
-        <button
-          onClick={() => handleGenerate(14)}
-          disabled={isGenerating}
-          className="h-11 rounded-xl bg-pink-700/60 active:bg-pink-700/80 disabled:opacity-40 text-xs font-semibold text-pink-100 touch-manipulation"
-        >
-          7日分<br /><span className="text-xs font-normal opacity-70">14件</span>
-        </button>
+        {([1, 2, 4] as const).map(n => (
+          <button
+            key={n}
+            onClick={() => router.push(`/generate?count=${n}`)}
+            disabled={isGenerating}
+            className="h-11 rounded-xl bg-pink-900/50 active:bg-pink-800/70 disabled:opacity-40 text-xs font-semibold text-pink-200 touch-manipulation"
+          >
+            {n}件
+          </button>
+        ))}
       </div>
 
       {globalError && <p className="text-xs text-red-400 text-center">{globalError}</p>}

@@ -6,8 +6,16 @@ import path from 'path'
 import { withRetry, TransientApiError } from '@/lib/retry'
 import kimonoPatterns from '../../../../../../../research/data/kimono_patterns.json'
 import imageConfig from '../../../../../../../research/data/image_config.json'
+import genSettings from '../../../../../../../research/data/generation_settings.json'
 
-// ── 季節カレンダー（season_calendar.json の内容を定数として埋め込み） ──────────
+// ── 型定義 ───────────────────────────────────────────────────────────────────
+type SituationEntry = { id: string; label: string; en_prompt: string | null; poses: string[] }
+type ColorEntry     = { id: string; light_en: string | null; base_en: string | null; dark_en: string | null }
+type PatternEntry   = { id: string; en: string | null }
+type ExprEntry      = { id: string; en: string | null }
+type WeatherEntry   = { id: string; en: string | null }
+
+// ── 季節カレンダー ────────────────────────────────────────────────────────────
 interface SeasonEntry {
   season_en: string
   allow: string[]
@@ -124,7 +132,7 @@ const HASHTAG_POOL = [
   '#JapaneseFashion', '#Zen', '#KimonoStyle',
 ]
 
-// ── システムプロンプト ────────────────────────────────────────────────────────
+// ── システムプロンプト ─────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are the content generator for the Twitter account "凛（Rin）", a beautiful 20-year-old Japanese woman in seasonal kimono who warmly shares Japanese culture with international followers.
 
 【Character: 凛（Rin）】
@@ -180,18 +188,74 @@ function getSeasonalContext(): string {
   ].join('\n')
 }
 
-function pickKimonoHint(month: number): string {
+function pickRandomComponents(month: number): { color: string; pattern: string; obi: string } {
   const useClassic = Math.random() < kimonoPatterns.classic_ratio
   const key = String(month) as keyof typeof kimonoPatterns.seasonal
-  const pool = useClassic
+  const patternPool = useClassic
     ? kimonoPatterns.classic
     : (kimonoPatterns.seasonal[key] ?? kimonoPatterns.classic)
-  const pattern = pool[Math.floor(Math.random() * pool.length)]
-  const colorKey = key as keyof typeof kimonoPatterns.seasonal_colors
-  const colorPool = kimonoPatterns.seasonal_colors[colorKey] ?? kimonoPatterns.colors
+  const pattern = patternPool[Math.floor(Math.random() * patternPool.length)]
+  const colorPool = kimonoPatterns.seasonal_colors[key as keyof typeof kimonoPatterns.seasonal_colors] ?? kimonoPatterns.colors
   const color = colorPool[Math.floor(Math.random() * colorPool.length)]
   const obi = kimonoPatterns.obi[Math.floor(Math.random() * kimonoPatterns.obi.length)]
-  return `she is wearing a traditional Japanese kimono (着物), entirely ${color} kimono with single color scheme throughout, wide kimono sleeves and formal Japanese draping, ${pattern}, paired with ${obi} obi sash, NOT western clothes`
+  return { color, pattern, obi }
+}
+
+function buildKimonoHint(
+  colorId: string | undefined,
+  shadeId: string | undefined,
+  patternId: string | undefined,
+  month: number,
+): string {
+  const rand = pickRandomComponents(month)
+
+  // Color
+  let colorEn: string
+  if (!colorId || colorId === 'random') {
+    colorEn = rand.color
+  } else {
+    const colorCfg = (genSettings.colors as ColorEntry[]).find(c => c.id === colorId)
+    if (!colorCfg?.light_en) {
+      colorEn = rand.color
+    } else {
+      const resolvedShade = (!shadeId || shadeId === 'random')
+        ? (Math.random() < 0.5 ? 'light' : 'dark')
+        : shadeId
+      colorEn = resolvedShade === 'light' ? (colorCfg.light_en ?? rand.color) : (colorCfg.dark_en ?? rand.color)
+    }
+  }
+
+  // Pattern
+  let patternEn: string
+  if (!patternId || patternId === 'random') {
+    patternEn = rand.pattern
+  } else {
+    const patCfg = (genSettings.patterns as PatternEntry[]).find(p => p.id === patternId)
+    patternEn = patCfg?.en ?? rand.pattern
+  }
+
+  return `she is wearing a traditional Japanese kimono (着物), entirely ${colorEn} kimono with single color scheme throughout, wide kimono sleeves and formal Japanese draping, ${patternEn}, paired with ${rand.obi} obi sash, NOT western clothes`
+}
+
+function buildSceneFromSettings(
+  situationId: string | undefined,
+  expressionId: string | undefined,
+  weatherId: string | undefined,
+  freeText: string | undefined,
+): string | null {
+  if (!situationId || situationId === 'random') return null
+  const sit = (genSettings.situations as SituationEntry[]).find(s => s.id === situationId)
+  if (!sit?.en_prompt) return null
+
+  const pose = freeText?.trim() || sit.poses[Math.floor(Math.random() * sit.poses.length)]
+  const expEn = (expressionId && expressionId !== 'random')
+    ? ((genSettings.expressions as ExprEntry[]).find(e => e.id === expressionId)?.en ?? null)
+    : null
+  const wxEn = (weatherId && weatherId !== 'random')
+    ? ((genSettings.weather as WeatherEntry[]).find(w => w.id === weatherId)?.en ?? null)
+    : null
+
+  return [sit.en_prompt, pose, expEn, wxEn].filter(Boolean).join(', ')
 }
 
 function pickHashtags(n: number): string[] {
@@ -208,33 +272,55 @@ function pickHashtags(n: number): string[] {
 export const maxDuration = 300
 export const dynamic = 'force-dynamic'
 
-export async function POST() {
-  const geminiKey = process.env.GEMINI_API_KEY
-  const falKey = process.env.FAL_KEY
+export async function POST(req: Request) {
+  const geminiKey   = process.env.GEMINI_API_KEY
+  const falKey      = process.env.FAL_KEY
   const referenceUrl = process.env.REFERENCE_IMAGE_URL
 
   if (!geminiKey)    return NextResponse.json({ error: 'GEMINI_API_KEY not set' }, { status: 500 })
   if (!falKey)       return NextResponse.json({ error: 'FAL_KEY not set' }, { status: 500 })
   if (!referenceUrl) return NextResponse.json({ error: 'REFERENCE_IMAGE_URL not set' }, { status: 500 })
 
+  // ① オプショナルなリクエストボディを読み込む（bot.py や旧UIからはbodyなし）
+  let reqBody: {
+    situation?: string; color?: string; shade?: string
+    pattern?: string; expression?: string; weather?: string; freeText?: string
+  } = {}
+  try {
+    const ct = req.headers.get('content-type') ?? ''
+    if (ct.includes('application/json')) reqBody = await req.json()
+  } catch { /* no body → all random */ }
+
+  const { situation, color, shade, pattern, expression, weather, freeText } = reqBody
+
   // ジョブ作成（pending）
   const job = await prisma.generationJob.create({ data: {} })
   const jobId = job.id
 
-  // ① 季節コンテキストを先頭に付加したシステムプロンプトを構築
   const jstMonth = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCMonth() + 1
-  const seasonalContext = getSeasonalContext()
-  const fullSystemPrompt = seasonalContext
-    ? `${seasonalContext}\n\n${SYSTEM_PROMPT}`
-    : SYSTEM_PROMPT
 
-  // ② Gemini でシーン＋ツイート文生成（最大2回）
+  // ② シチュエーション設定を取得（ツイート文のGeminiコンテキストに使う）
+  const sitConfig = (situation && situation !== 'random')
+    ? ((genSettings.situations as SituationEntry[]).find(s => s.id === situation) ?? null)
+    : null
+
+  // ③ 季節コンテキスト＋Geminiシステムプロンプト
+  const seasonalContext = getSeasonalContext()
+  const fullSystemPrompt = seasonalContext ? `${seasonalContext}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
+
+  // ④ Geminiへのユーザーメッセージ（シチュエーション指定時はヒントを追加）
+  let userMessage = 'Generate one post for Rin based on the current season.'
+  if (sitConfig) {
+    userMessage = `Generate a post for Rin. She is at a ${sitConfig.label}. Write the tweet to reflect this traditional Japanese setting, matching the current season's mood.`
+  }
+
+  // ⑤ Gemini でシーン＋ツイート文生成
   await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'generating' } })
 
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`
+  const geminiUrl  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`
   const geminiBody = JSON.stringify({
     system_instruction: { parts: [{ text: fullSystemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: 'Generate one post for Rin based on the current season.' }] }],
+    contents: [{ role: 'user', parts: [{ text: userMessage }] }],
     generationConfig: { maxOutputTokens: 2048 },
   })
 
@@ -250,16 +336,13 @@ export async function POST() {
     if (!geminiRes.ok) {
       const errBody = await geminiRes.text()
       const message = `Gemini API error (${geminiRes.status}): ${errBody.slice(0, 300)}`
-      // 503 (高負荷) と 429 (レート制限) は一時的エラーとしてリトライ対象にする
-      if (geminiRes.status === 503 || geminiRes.status === 429) {
-        throw new TransientApiError(message, geminiRes.status)
-      }
+      if (geminiRes.status === 503 || geminiRes.status === 429) throw new TransientApiError(message, geminiRes.status)
       throw new Error(message)
     }
     return geminiRes.json()
   }
 
-  let scenePrompt = ''
+  let geminiScenePrompt = ''
   let tweetText = ''
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -270,7 +353,7 @@ export async function POST() {
       geminiData = await withRetry(() => callGeminiOnce(), { label: 'gemini' })
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err)
-      console.error('[generate/rin] Gemini API error (リトライ後も失敗):', detail)
+      console.error('[generate/rin] Gemini API error:', detail)
       await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: `Gemini API error: ${detail.slice(0, 200)}` } })
       return NextResponse.json({ error: 'Gemini API error', detail, jobId }, { status: 500 })
     }
@@ -283,44 +366,39 @@ export async function POST() {
       .trim()
 
     const finishReason = geminiData.candidates?.[0]?.finishReason
-    console.log('[generate/rin] finishReason=%s rawLen=%d rawText=%j', finishReason, rawText.length, rawText.slice(0, 300))
+    console.log('[generate/rin] finishReason=%s rawLen=%d', finishReason, rawText.length)
     if (finishReason === 'MAX_TOKENS') {
-      console.error('[generate/rin] output truncated by MAX_TOKENS — increase maxOutputTokens')
       await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: 'AI output truncated (MAX_TOKENS)' } })
       return NextResponse.json({ error: 'AI output truncated (MAX_TOKENS)', raw: rawText, jobId }, { status: 500 })
     }
 
-    const cleanText = rawText
-      .replace(/^```[^\n]*\n?/m, '')
-      .replace(/\n?```\s*$/m, '')
-      .trim()
-
+    const cleanText = rawText.replace(/^```[^\n]*\n?/m, '').replace(/\n?```\s*$/m, '').trim()
     const sceneMatch = cleanText.match(/SCENE_PROMPT:\s*([^\n]+)/)
     const tweetMatch = cleanText.match(/TWEET:\s*([\s\S]+)/)
 
     if (!sceneMatch || !tweetMatch) {
       if (attempt === 0) continue
-      console.error('[generate/rin] parse failed after retry. cleanText=%j', cleanText)
       await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'failed', errorMessage: 'AI output format error after retry' } })
       return NextResponse.json({ error: 'AI output format error', raw: cleanText, jobId }, { status: 500 })
     }
 
-    scenePrompt = sceneMatch[1].trim()
-    const tweetBodyLines = tweetMatch[1]
-      .trim()
-      .split('\n')
-      .filter((line) => !line.trimStart().startsWith('#'))
+    geminiScenePrompt = sceneMatch[1].trim()
+    const tweetBodyLines = tweetMatch[1].trim().split('\n').filter((line) => !line.trimStart().startsWith('#'))
     const tweetBody = tweetBodyLines.join('\n').trim()
-    const hashtags = pickHashtags(4).join('\n')
-    tweetText = `${tweetBody}\n${hashtags}`
+    tweetText = `${tweetBody}\n${pickHashtags(4).join('\n')}`
     break
   }
 
-  // ④ DB に下書き作成
+  // ⑥ 着物ヒント＋シーンプロンプトを設定から構築（シチュエーション未指定時はGemini生成を使用）
+  const kimonoHint   = buildKimonoHint(color, shade, pattern, jstMonth)
+  const builtScene   = buildSceneFromSettings(situation, expression, weather, freeText)
+  const sceneToUse   = builtScene ?? geminiScenePrompt
+
+  // ⑦ DB に下書き作成
   const post = await prisma.post.create({
     data: {
       tweetText,
-      imagePrompt: scenePrompt,
+      imagePrompt: sceneToUse,
       slot: 'evening',
       theme: 'rin-daily',
       themeName: 'Daily Post',
@@ -330,15 +408,12 @@ export async function POST() {
     },
   })
 
-  // ⑤ fal.ai で画像生成（120秒タイムアウト付き）
+  // ⑧ fal.ai で画像生成
   fal.config({ credentials: falKey })
-  const kimonoHint    = pickKimonoHint(jstMonth)
   const eleganceBlock = (imageConfig as Record<string, string>).elegance_block ?? ''
-  const promptParts   = [kimonoHint, eleganceBlock, scenePrompt].filter(s => s !== '')
+  const promptParts   = [kimonoHint, eleganceBlock, sceneToUse].filter(s => s !== '')
   const basePrompt    = promptParts.join(', ')
-  const falPrompt     = imageConfig.quality_suffix
-    ? `${basePrompt}, ${imageConfig.quality_suffix}`
-    : basePrompt
+  const falPrompt     = imageConfig.quality_suffix ? `${basePrompt}, ${imageConfig.quality_suffix}` : basePrompt
   const falInput = {
     image_url: referenceUrl,
     prompt: falPrompt,
@@ -349,7 +424,8 @@ export async function POST() {
 
   let falResult: { data: { images: { url: string }[] } }
   try {
-    console.log('[generate/rin] fal.ai input=%s', JSON.stringify({ ...falInput, promptLength: falInput.prompt.length }, null, 2))
+    console.log('[generate/rin] fal.ai input promptLen=%d situation=%s color=%s pattern=%s',
+      falInput.prompt.length, situation ?? 'random', color ?? 'random', pattern ?? 'random')
     falResult = await withRetry(
       () => Promise.race([
         fal.subscribe('fal-ai/instant-character', {
@@ -380,7 +456,7 @@ export async function POST() {
 
   const imageUrl = falResult.data.images[0].url
 
-  // ⑥ 画像をダウンロードして保存
+  // ⑨ 画像ダウンロード
   let imgBuf: Buffer
   try {
     const imgRes = await fetch(imageUrl)
@@ -391,7 +467,7 @@ export async function POST() {
     return NextResponse.json({ error: 'image download failed', detail: String(dlErr), id: post.id, jobId }, { status: 500 })
   }
 
-  // ⑦ フィルムグレード（research-api 経由）
+  // ⑩ フィルムグレード
   const filmPreset  = process.env.FILM_PRESET ?? 'subtle'
   const researchApi = process.env.RESEARCH_API_URL ?? 'http://research-api:8787'
   try {
@@ -412,14 +488,23 @@ export async function POST() {
     console.warn('[generate/rin] film grade skipped:', filmErr)
   }
 
+  // ⑪ 画像保存 + DB更新（生成条件も記録）
   const mediaDir = process.env.IMAGE_DIR ?? '/app/data/images'
   fs.mkdirSync(mediaDir, { recursive: true })
   const filename = `${post.id}.png`
   fs.writeFileSync(path.join(mediaDir, filename), imgBuf)
 
+  const conditionsJson = (situation || color || shade || pattern || expression || weather || freeText)
+    ? JSON.stringify({ situation, color, shade, pattern, expression, weather, freeText: freeText || undefined })
+    : null
+
   await prisma.post.update({
     where: { id: post.id },
-    data: { imagePath: filename, mediaType: 'image' },
+    data: {
+      imagePath: filename,
+      mediaType: 'image',
+      ...(conditionsJson ? { generationConditions: conditionsJson } : {}),
+    },
   })
 
   await prisma.generationJob.update({ where: { id: jobId }, data: { status: 'done', postId: post.id } })

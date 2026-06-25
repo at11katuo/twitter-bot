@@ -1,0 +1,103 @@
+{
+  "_comment": "凛（Rin）生成UIの設定ファイル。id=random はおまかせ。",
+  "situations": [
+    {
+      "id": "temple",
+      "label": "お寺・神社",
+      "en_prompt": "at a traditional Japanese shrine with stone lanterns, ancient wooden architecture, and a gravel pathway",
+      "poses": [
+        "hands clasped in prayer, eyes gently closed",
+        "standing before a torii gate, serene gaze ahead",
+        "sitting on stone steps, contemplative expression",
+        "walking slowly along a gravel path, glancing at ancient surroundings"
+      ]
+    },
+    {
+      "id": "garden",
+      "label": "和風庭園",
+      "en_prompt": "in a traditional Japanese garden with moss-covered stones, stone lanterns, and a tranquil koi pond",
+      "poses": [
+        "gazing softly at the koi pond, gentle smile",
+        "crouching beside flowering plants, examining them closely",
+        "standing under a maple tree, looking upward peacefully",
+        "walking along a stone path between bamboo, holding a folded fan"
+      ]
+    },
+    {
+      "id": "room",
+      "label": "和室・茶室",
+      "en_prompt": "inside a traditional Japanese tatami room with shoji screens, soft natural light filtering through paper panels",
+      "poses": [
+        "seated in seiza on tatami, hands resting gracefully on lap",
+        "performing a tea ceremony, carefully whisking matcha in a ceramic bowl",
+        "arranging ikebana flowers in a ceramic vase beside a tokonoma alcove",
+        "looking through shoji screen at the garden view, thoughtful expression"
+      ]
+    },
+    {
+      "id": "kyoto",
+      "label": "京都の街並み",
+      "en_prompt": "on a quiet Kyoto street lined with traditional machiya townhouses, stone walls, and old stone lanterns",
+      "poses": [
+        "walking gracefully along a narrow stone-paved lane",
+        "pausing beside a bamboo fence, holding a paper umbrella",
+        "standing near an old merchant house entrance, soft curious expression",
+        "looking around a corner, one hand resting lightly on a stone wall"
+      ]
+    },
+    {
+      "id": "random",
+      "label": "おまかせ",
+      "en_prompt": null,
+      "poses": []
+    }
+  ],
+  "colors": [
+    { "id": "pink",   "label": "ピンク",     "light_en": "pale blush pink",    "base_en": "soft rose pink",      "dark_en": "deep rose pink" },
+    { "id": "blue",   "label": "青（藍）",   "light_en": "soft indigo blue",   "base_en": "indigo blue",         "dark_en": "deep indigo navy" },
+    { "id": "red",    "label": "赤",         "light_en": "soft vermilion red", "base_en": "vermilion red",       "dark_en": "deep crimson red" },
+    { "id": "purple", "label": "紫",         "light_en": "pale lavender",      "base_en": "soft purple",         "dark_en": "deep royal purple" },
+    { "id": "white",  "label": "白",         "light_en": "pure snow white",    "base_en": "pure white",          "dark_en": "pearl grey white" },
+    { "id": "black",  "label": "黒",         "light_en": "charcoal grey",      "base_en": "deep charcoal",       "dark_en": "jet black" },
+    { "id": "yellow", "label": "黄・金",     "light_en": "pale straw yellow",  "base_en": "warm amber gold",     "dark_en": "deep antique gold" },
+    { "id": "green",  "label": "緑",         "light_en": "pale sage green",    "base_en": "soft forest green",   "dark_en": "deep forest green" },
+    { "id": "random", "label": "おまかせ",   "light_en": null,                 "base_en": null,                  "dark_en": null }
+  ],
+  "shades": [
+    { "id": "light",  "label": "淡い" },
+    { "id": "dark",   "label": "濃い" },
+    { "id": "random", "label": "おまかせ" }
+  ],
+  "patterns": [
+    { "id": "plain",         "label": "無地",             "en": "solid plain fabric with subtle woven silk texture, no printed pattern" },
+    { "id": "wisteria",      "label": "藤",               "en": "wisteria (fuji) blossom pattern with cascading clusters" },
+    { "id": "auspicious",    "label": "吉祥文様",         "en": "auspicious treasure (takarazukushi) motif with classic Japanese lucky symbols" },
+    { "id": "geometric",     "label": "幾何学（麻の葉）", "en": "geometric hemp-leaf (asanoha) pattern of interlocking hexagons" },
+    { "id": "butterfly",     "label": "蝶",               "en": "elegant butterfly (cho) motif with delicate wing details" },
+    { "id": "wave",          "label": "波（青海波）",     "en": "traditional wave (seigaiha) pattern of overlapping semicircles" },
+    { "id": "water",         "label": "流水",             "en": "flowing-water (ryusui) motif with gentle meandering stream lines" },
+    { "id": "chrysanthemum", "label": "菊",               "en": "chrysanthemum (kiku) pattern with full rounded petals" },
+    { "id": "bellflower",    "label": "桔梗",             "en": "bellflower (kikyo) pattern with five-petaled star-shaped blooms" },
+    { "id": "maple",         "label": "紅葉",             "en": "maple-leaf (momiji) pattern with scattered autumn foliage" },
+    { "id": "grape",         "label": "葡萄",             "en": "grape cluster (budo) motif with bunches of round fruit and vine leaves" },
+    { "id": "plum",          "label": "梅",               "en": "plum blossom (ume) pattern with round five-petaled flowers" },
+    { "id": "camellia",      "label": "椿",               "en": "camellia (tsubaki) pattern with bold round blooms and glossy leaves" },
+    { "id": "citrus",        "label": "橘（蜜柑）",       "en": "mandarin orange (tachibana) motif with round fruit and leaves" },
+    { "id": "snowflake",     "label": "雪輪",             "en": "snowflake (yukiwa) pattern of rounded geometric snow-ring shapes" },
+    { "id": "random",        "label": "おまかせ",         "en": null }
+  ],
+  "expressions": [
+    { "id": "smile",      "label": "笑顔",           "en": "bright warm smile, cheerful joyful expression" },
+    { "id": "gentle",     "label": "おっとり微笑み", "en": "gentle soft smile, calm serene peaceful expression" },
+    { "id": "refined",    "label": "凛々しい",       "en": "composed dignified expression, refined elegant gaze" },
+    { "id": "mysterious", "label": "神秘的",         "en": "mysterious subtle gaze, enigmatic quiet expression" },
+    { "id": "random",     "label": "おまかせ",       "en": null }
+  ],
+  "weather": [
+    { "id": "sunny",  "label": "晴れ", "en": "bright clear weather, warm golden sunlight filtering through" },
+    { "id": "cloudy", "label": "曇り", "en": "soft overcast sky, gentle diffused natural light" },
+    { "id": "rain",   "label": "雨",   "en": "light rain falling softly, glistening wet stone surfaces, misty atmosphere" },
+    { "id": "snow",   "label": "雪",   "en": "snow falling gently, quiet white winter atmosphere, cold still air" },
+    { "id": "random", "label": "おまかせ", "en": null }
+  ]
+}
