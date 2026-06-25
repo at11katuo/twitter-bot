@@ -33,8 +33,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler(LOG_DIR / "bot.log", encoding="utf-8"),
-        logging.StreamHandler(),
+        logging.StreamHandler(),  # cron が stdout/stderr を bot.log にリダイレクト
     ],
 )
 logger = logging.getLogger(__name__)

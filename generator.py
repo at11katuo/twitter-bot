@@ -215,7 +215,8 @@ def generate_content(theme: str = "") -> tuple[str, str]:
         else "Create a post for 凛（Rin）that feels true to this month's season and mood."
     )
 
-    for attempt in range(1, 4):
+    RETRY_WAITS = [60, 120, 180]  # 503高負荷時: 1分→2分→3分待機
+    for attempt in range(1, 5):
         try:
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
@@ -225,12 +226,13 @@ def generate_content(theme: str = "") -> tuple[str, str]:
             text = response.text.strip()
             break
         except Exception as e:
-            print(f"[警告] Gemini 失敗 (試行 {attempt}/3): {e}")
-            if attempt < 3:
-                print("60秒待機して再試行...")
-                time.sleep(60)
+            print(f"[警告] Gemini 失敗 (試行 {attempt}/4): {e}")
+            if attempt < 4:
+                wait = RETRY_WAITS[attempt - 1]
+                print(f"{wait}秒待機して再試行...")
+                time.sleep(wait)
     else:
-        raise RuntimeError("Gemini API が3回すべて失敗しました。")
+        raise RuntimeError("Gemini API が4回すべて失敗しました。")
 
     scene_match = re.search(r"SCENE_PROMPT:\s*(.+)", text)
     tweet_match = re.search(r"TWEET:\s*(.+)", text, re.DOTALL)
