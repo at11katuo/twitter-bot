@@ -103,7 +103,9 @@ jobs:
             echo "==> setup cron jobs"
             mkdir -p /home/deployer/twitter-bot/logs
             (
+              echo "TZ=Asia/Tokyo"
               crontab -l 2>/dev/null \
+                | grep -v '^TZ=' \
                 | grep -v 'api/cleanup' \
                 | grep -v 'bot.py' \
                 || true
