@@ -10,3 +10,11 @@ export async function GET() {
   })
   return NextResponse.json(jobs)
 }
+
+export async function DELETE() {
+  const result = await prisma.generationJob.updateMany({
+    where: { status: { in: ['pending', 'generating'] } },
+    data: { status: 'failed', errorMessage: 'Cleared manually' },
+  })
+  return NextResponse.json({ ok: true, cleared: result.count })
+}

@@ -101,6 +101,15 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
     }
   }
 
+  async function handleClearJobs() {
+    setGlobalError('')
+    await fetch('/api/jobs', { method: 'DELETE' })
+    stopPolling()
+    pendingCount.current = 0
+    await fetchJobs()
+    router.refresh()
+  }
+
   const refFilename = referenceUrl
     ? (referenceUrl.split('/').pop() ?? referenceUrl.slice(-20))
     : null
@@ -172,7 +181,17 @@ export default function GenerateRin({ referenceUrl }: { referenceUrl?: string })
       {/* ジョブ状態リスト */}
       {jobs.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs text-slate-500 font-medium">最近のジョブ</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500 font-medium">最近のジョブ</p>
+            {jobs.some(j => j.status === 'pending' || j.status === 'generating') && (
+              <button
+                onClick={handleClearJobs}
+                className="text-xs text-slate-500 hover:text-red-400 underline"
+              >
+                スタック中をクリア
+              </button>
+            )}
+          </div>
           {jobs.map(j => (
             <div key={j.id} className="flex items-start gap-2 text-xs rounded-lg px-2 py-1.5 bg-slate-900/40 border border-slate-700/20">
               <span className="flex-shrink-0 mt-0.5">{statusIcon(j.status)}</span>
