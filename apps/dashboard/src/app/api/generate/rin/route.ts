@@ -12,8 +12,8 @@ import genSettings from '../../../../../../../research/data/generation_settings.
 type SituationEntry = { id: string; label: string; en_prompt: string | null; poses: string[] }
 type ColorEntry     = { id: string; light_en: string | null; dark_en: string | null }
 type PatternEntry   = { id: string; en: string | null }
-type ExprEntry      = { id: string; en: string | null }
-type WeatherEntry   = { id: string; en: string | null }
+type ExprEntry      = { id: string; label: string; en: string | null }
+type WeatherEntry   = { id: string; label: string; en: string | null }
 
 type GenBody = {
   situation?: string; color?: string; shade?: string
@@ -152,6 +152,58 @@ function buildSceneFromSettings(situationId: string | undefined, expressionId: s
   return [sit.en_prompt, pose, expEn, wxEn].filter(Boolean).join(', ')
 }
 
+// ユーザー選択条件を Gemini に渡すユーザーメッセージを構築する。
+// 条件が明示指定されている場合、季節コンテキストより優先されるよう明記する。
+function buildGeminiUserMessage(body: GenBody, sitConfig: SituationEntry | null, builtScene: string | null): string {
+  const hasExplicit = Boolean(
+    sitConfig ||
+    (body.weather   && body.weather   !== 'random') ||
+    (body.expression && body.expression !== 'random') ||
+    body.freeText?.trim()
+  )
+
+  if (!hasExplicit && !builtScene) {
+    return "Generate one post for Rin based on the current season."
+  }
+
+  const lines: string[] = []
+
+  if (builtScene) {
+    lines.push(`Generate a post for Rin. The actual image scene is: "${builtScene}"`)
+    lines.push('Write both SCENE_PROMPT and TWEET to match this exact scene.')
+  } else {
+    lines.push('Generate a post for Rin.')
+  }
+
+  if (hasExplicit) {
+    lines.push('')
+    lines.push('User explicitly chose the following conditions — they override the seasonal mood above:')
+    if (sitConfig) {
+      lines.push(`- Location: ${sitConfig.label}`)
+    }
+    if (body.weather && body.weather !== 'random') {
+      const wx = (genSettings.weather as WeatherEntry[]).find(w => w.id === body.weather)
+      if (wx) lines.push(`- Weather: ${wx.label}${wx.en ? ` (${wx.en})` : ''}`)
+    }
+    if (body.expression && body.expression !== 'random') {
+      const exp = (genSettings.expressions as ExprEntry[]).find(e => e.id === body.expression)
+      if (exp) lines.push(`- Expression/mood: ${exp.label}${exp.en ? ` (${exp.en})` : ''}`)
+    }
+    if (body.freeText?.trim()) {
+      lines.push(`- Pose/action: "${body.freeText.trim()}"`)
+    }
+    lines.push('')
+    lines.push(
+      'IMPORTANT: The tweet MUST reflect these user-chosen conditions. ' +
+      'If weather is sunny, write bright and cheerful — NOT rain, NOT melancholy. ' +
+      'If weather is rainy, write about rain. ' +
+      'Match the actual chosen conditions, not the general seasonal mood.'
+    )
+  }
+
+  return lines.join('\n')
+}
+
 function pickHashtags(n: number): string[] {
   const pool = [...HASHTAG_POOL]
   const result: string[] = []
@@ -210,16 +262,26 @@ async function runGeneration(jobId: string, body: GenBody, env: GenEnv): Promise
       ? ((genSettings.situations as SituationEntry[]).find(s => s.id === situation) ?? null)
       : null
 
-    // Gemini: シーン＋ツイート生成
+    // ① シーンを先にビルド → Gemini ユーザーメッセージに含めて条件を明示
+    const builtScene = buildSceneFromSettings(situation, expression, weather, freeText)
+
+    // ② 季節コンテキスト（ユーザー指定条件がある場合は「参考のみ」と明記）
+    const hasExplicit = Boolean(sitConfig || (weather && weather !== 'random') || (expression && expression !== 'random') || freeText?.trim())
     const seasonalContext = getSeasonalContext()
-    const fullSystemPrompt = seasonalContext ? `${seasonalContext}\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT
-    const userMessage = sitConfig
-      ? `Generate a post for Rin. She is at a ${sitConfig.label}. Write the tweet to reflect this traditional Japanese setting, matching the current season's mood.`
-      : 'Generate one post for Rin based on the current season.'
+    const seasonalNote = hasExplicit
+      ? '\n[NOTE: The seasonal mood above is for reference only. Explicit user conditions in the request MUST take priority.]'
+      : ''
+    const fullSystemPrompt = seasonalContext
+      ? `${seasonalContext}${seasonalNote}\n\n${SYSTEM_PROMPT}`
+      : SYSTEM_PROMPT
+
+    // ③ Gemini ユーザーメッセージ（選択条件を明示）
+    const userMessage = buildGeminiUserMessage(body, sitConfig, builtScene)
+    console.log('[generate/rin bg] userMessage=%s', userMessage.slice(0, 300))
 
     const geminiData = await callGemini(geminiKey, fullSystemPrompt, userMessage)
 
-    // パース（最大2回試行）
+    // ④ パース（最大2回試行）
     let geminiScenePrompt = ''
     let tweetText = ''
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -241,9 +303,8 @@ async function runGeneration(jobId: string, body: GenBody, env: GenEnv): Promise
       break
     }
 
-    // プロンプト構築
+    // ⑤ 画像プロンプト：builtScene 優先、なければ Gemini のシーンを使用
     const kimonoHint = buildKimonoHint(color, shade, pattern, month)
-    const builtScene  = buildSceneFromSettings(situation, expression, weather, freeText)
     const sceneToUse  = builtScene ?? geminiScenePrompt
 
     // DB に下書き作成
